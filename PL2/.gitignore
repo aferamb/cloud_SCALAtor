@@ -45,3 +45,12 @@ build/
 
 ### Scala ###
 .bsp/
+
+### Local reference material ###
+PL1_CUDA_REFERENCIA/
+
+### Visual Studio / CUDA build outputs ###
+.vs/
+x64/
+**/.vs/
+**/x64/

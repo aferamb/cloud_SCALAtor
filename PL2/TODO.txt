@@ -1,0 +1,249 @@
+# TODO PL2 - Scala + Integracion Cloud
+
+Este archivo es la guia de trabajo de la practica. La idea es avanzar paso a paso,
+validando cada bloque antes de pasar al siguiente.
+
+## 0. Informacion que necesito de la PL1 CUDA
+
+- [x] Codigo fuente de la practica CUDA anterior.
+- [x] Funcion `main` o menu principal.
+- [x] Codigo de la Fase 01: retraso en despegues.
+- [x] Codigo de la Fase 02: retraso en aterrizajes.
+- [x] Codigo de la Fase 03: reduccion de retraso.
+- [x] Codigo de la Fase 04: histograma de aeropuertos.
+- [x] Cabecera real del CSV usado.
+- [x] Ejemplo de 3-5 filas del CSV, si se puede compartir.
+- [ ] Ejemplo de salida por consola de cada fase, si existe.
+- [x] Confirmar si la PL1 leia el CSV original o un CSV limpiado.
+
+## 1. Preparar proyecto Scala
+
+- [x] Revisar la estructura actual de este repositorio.
+- [x] Decidir si se usara proyecto SBT, IntelliJ simple o estructura existente.
+- [x] Crear/ajustar punto de entrada `main`.
+- [x] Dividir el codigo Scala en archivos por responsabilidad:
+  - [x] `Main.scala` para menu y coordinacion.
+  - [x] `Models.scala` para modelos inmutables.
+  - [x] `CsvReader.scala` para lectura y parseo.
+  - [x] `AppUtils.scala` para utilidades comunes.
+  - [x] `Phase01.scala` para Fase 01.
+  - [x] `Phase02.scala` para Fase 02.
+- [x] Pedir al usuario la ruta del CSV al arrancar.
+- [x] Permitir ruta por defecto para facilitar pruebas.
+- [x] Crear menu principal con opciones:
+  - [x] Fase 01: retraso en despegues.
+  - [x] Fase 02: retraso en aterrizajes.
+  - [x] Fase 03: reduccion de retraso.
+  - [x] Fase 04: histograma de aeropuertos.
+  - [x] Cambiar ruta del CSV, si se decide incluir.
+  - [x] Salir.
+- [x] Volver al menu al terminar cada fase.
+
+## 2. Restricciones funcionales de Scala
+
+- [x] Usar `val` por defecto.
+- [x] Evitar `var`, salvo justificacion fuerte.
+- [x] Usar objetos inmutables.
+- [ ] Evitar efectos colaterales en la logica de procesamiento.
+- [x] No usar bucles `for`, `while` o similares para recorrer colecciones.
+- [x] No usar colecciones mutables.
+- [x] No usar concatenacion de listas `++`, `:::`, ni similares.
+- [x] No usar operaciones prohibidas de listas:
+  - [x] `reverse`
+  - [x] `length`
+  - [x] `last`
+  - [x] `isEmpty`
+  - [x] `filter`
+  - [x] `flatten`
+  - [x] `flatMap`
+  - [x] derivadas de `reverse`
+- [x] Implementar funciones propias con recursividad de cola cuando sean necesarias.
+- [x] Documentar en comentarios breves las partes clave de recursividad de cola.
+
+## 3. Lectura y parseo del CSV
+
+- [x] Leer el fichero CSV desde la ruta introducida.
+- [x] Separar cabecera y datos.
+- [x] Identificar indices de columnas necesarias.
+- [x] Crear modelo inmutable, por ejemplo `case class Flight`.
+- [x] Incluir al menos:
+  - [x] id / primera columna del dataset.
+  - [x] `DEP_DELAY`.
+  - [x] `ARR_DELAY`.
+  - [x] aeropuerto de origen.
+  - [x] aeropuerto de destino.
+- [x] Tratar valores vacios o invalidos:
+  - [x] como `Option`.
+  - [ ] o como `Double.NaN`, si encaja mejor.
+- [ ] Probar lectura con CSV pequeno.
+- [x] Probar lectura con dataset completo.
+- [ ] Si el dataset completo falla por memoria/recursion, replantear lectura/procesamiento.
+
+## 4. Utilidades propias
+
+- [x] Funcion propia para contar elementos, si hace falta.
+- [x] Funcion propia para recorrer listas con acumulador.
+- [x] Funcion propia para seleccionar resultados sin `filter`.
+- [ ] Funcion propia para transformar elementos sin depender de operaciones prohibidas.
+- [ ] Funcion propia para insertar/actualizar pares en histograma.
+- [ ] Funcion propia para serializar resultados a texto/JSON si no se usa libreria.
+
+## 5. Fase 01 - Retraso en despegues
+
+- [x] Pedir umbral numerico entero.
+- [x] Si el umbral es positivo, buscar vuelos con `DEP_DELAY >= umbral`.
+- [x] Si el umbral es negativo, buscar vuelos con `DEP_DELAY <= umbral`.
+- [x] Mostrar id del dataset en vez de id de hilo CUDA.
+- [x] Mostrar minutos detectados.
+- [x] Guardar un resumen del resultado para posible envio Cloud.
+- [x] Validar salida contra el CSV real con conteos independientes.
+
+## 6. Fase 02 - Retraso en aterrizajes
+
+- [x] Pedir umbral numerico entero.
+- [x] Si el umbral es positivo, buscar vuelos con `ARR_DELAY >= umbral`.
+- [x] Si el umbral es negativo, buscar vuelos con `ARR_DELAY <= umbral`.
+- [x] Mostrar id del dataset en vez de id de hilo CUDA.
+- [x] Mostrar matricula `TAIL_NUM`.
+- [x] Mostrar minutos detectados.
+- [x] Guardar un resumen del resultado para posible envio Cloud.
+- [ ] Probar en IntelliJ con dataset completo.
+- [ ] Validar salida contra el CSV real con conteos independientes.
+
+## 7. Fase 03 - Reduccion de retraso
+
+- [ ] Revisar exactamente que hacia la variante `[3.1 Simple]` en la PL1.
+- [ ] Implementar solo esa variante.
+- [ ] Sustituir paralelismo/atomicas CUDA por recursividad de cola.
+- [ ] Calcular el resultado acumulado requerido.
+- [ ] Mostrar resultado por consola.
+- [ ] Guardar un resumen del resultado para posible envio Cloud.
+- [ ] Validar contra la version CUDA, si tenemos ejemplos.
+
+## 8. Fase 04 - Histograma de aeropuertos
+
+- [ ] Confirmar si el histograma es por origen, destino o ambos segun PL1.
+- [ ] Implementar histograma mediante recursividad de cola.
+- [ ] Usar lista de pares `(aeropuerto, contador)` salvo que se justifique otra estructura.
+- [ ] Mostrar resultados por consola.
+- [ ] Guardar un resumen del resultado para posible envio Cloud.
+- [ ] Validar contra la version CUDA, si tenemos ejemplos.
+
+## 9. Integracion Cloud desde Scala
+
+- [ ] Decidir estrategia de menu:
+  - [ ] Opcion extra "subir los datos al Cloud".
+  - [ ] O preguntar tras terminar cada fase si se quiere subir.
+- [ ] Recomendacion inicial: preguntar tras cada fase.
+- [ ] Pedir nombre de usuario.
+- [ ] Guardar fecha y hora actual.
+- [ ] Preparar objeto de resultado con:
+  - [ ] usuario.
+  - [ ] fecha/hora.
+  - [ ] fase ejecutada.
+  - [ ] parametros de entrada.
+  - [ ] resumen o datos de resultado.
+- [ ] Crear cliente HTTP en Scala.
+- [ ] Enviar datos por `POST` a la API.
+- [ ] Gestionar errores de conexion.
+- [ ] Mostrar confirmacion si la subida se realiza correctamente.
+
+## 10. API Node.js para Azure App Service
+
+- [ ] Crear carpeta de codigo Cloud, por ejemplo `cloud-api`.
+- [ ] Crear proyecto Node.js con Express.
+- [ ] Crear endpoint `POST /api/results`.
+- [ ] Crear endpoint `GET /api/results`.
+- [ ] Crear endpoint obligatorio `GET /` que devuelva el HTML visor.
+- [ ] Validar JSON recibido.
+- [ ] Conectar con base de datos.
+- [ ] Preparar variables de entorno.
+- [ ] Probar API en local antes de desplegar.
+
+## 11. Base de datos
+
+- [ ] Elegir proveedor de base de datos:
+  - [ ] Azure SQL Database, si se usa lo visto en clase.
+  - [ ] Alternativa externa gratuita/barata si la profesora lo permite.
+- [ ] Crear tabla de resultados.
+- [ ] Campos recomendados:
+  - [ ] id autoincremental.
+  - [ ] usuario.
+  - [ ] fecha/hora.
+  - [ ] fase.
+  - [ ] parametros.
+  - [ ] resultado.
+  - [ ] fecha de insercion.
+- [ ] Crear script SQL o equivalente.
+- [ ] Guardar scripts en carpeta de entrega.
+- [ ] Probar insercion desde API.
+- [ ] Probar lectura desde API.
+
+## 12. Visor Web
+
+- [ ] Crear HTML servido desde el endpoint `/`.
+- [ ] Mostrar tabla de resultados.
+- [ ] Ordenar por fecha.
+- [ ] Mostrar columnas principales:
+  - [ ] usuario.
+  - [ ] fecha/hora.
+  - [ ] fase.
+  - [ ] parametros.
+  - [ ] resultado.
+- [ ] Opcional: filtro de busqueda.
+- [ ] Opcional: ordenacion por columnas.
+- [ ] Probar desde navegador con datos reales.
+
+## 13. Despliegue en Azure
+
+- [ ] Crear Azure App Service con plan gratuito.
+- [ ] Configurar runtime Node.js.
+- [ ] Configurar variables de entorno de base de datos.
+- [ ] Desplegar API.
+- [ ] Comprobar URL publica del visor.
+- [ ] Probar `GET /api/results`.
+- [ ] Probar `POST /api/results`.
+- [ ] Probar envio desde Scala local a Azure.
+- [ ] Guardar capturas para memoria.
+
+## 14. Documentacion
+
+- [ ] Crear memoria PDF.
+- [ ] Apartado Scala:
+  - [ ] estructura del programa.
+  - [ ] lectura CSV.
+  - [ ] restricciones funcionales.
+  - [ ] recursividad de cola.
+  - [ ] descripcion de cada fase.
+- [ ] Apartado Cloud:
+  - [ ] arquitectura.
+  - [ ] Azure App Service.
+  - [ ] API.
+  - [ ] base de datos.
+  - [ ] endpoints.
+  - [ ] despliegue.
+  - [ ] capturas.
+- [ ] Incluir comandos relevantes.
+- [ ] Incluir URL publica del visor si esta disponible en defensa.
+
+## 15. Video de entrega
+
+- [ ] Preparar guion de menos de 3 minutos.
+- [ ] Mostrar ejecucion Scala local.
+- [ ] Ejecutar al menos una fase.
+- [ ] Subir resultado al Cloud.
+- [ ] Mostrar API/visor web con los datos.
+- [ ] Mostrar brevemente infraestructura Cloud.
+- [ ] Participacion de ambos miembros de la pareja.
+
+## 16. Revision final
+
+- [ ] Ejecutar todas las fases.
+- [ ] Revisar que no hay operaciones Scala prohibidas evidentes.
+- [ ] Revisar que el programa vuelve al menu.
+- [ ] Revisar que no se sobrescribe el dataset original.
+- [ ] Revisar trazas por consola.
+- [ ] Revisar envio Cloud.
+- [ ] Revisar visor web publico.
+- [ ] Revisar estructura de carpetas de entrega.
+- [ ] Preparar posibles preguntas de defensa.
