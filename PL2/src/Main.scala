@@ -14,6 +14,7 @@ object Main {
     }
   }
 
+  // Mantiene el menu activo mediante recursividad de cola.
   @tailrec
   private def menuLoop(dataset: Dataset, lastResult: Option[PhaseResult]): Unit = {
     printMenu(dataset)
@@ -74,6 +75,7 @@ object Main {
     println(s"CSV actual: ${dataset.path}")
   }
 
+  // Solicita la ruta del CSV, ofrece una ruta local por defecto y reintenta si falla.
   @tailrec
   private def promptAndLoadDataset(defaultPath: Option[String]): Option[Dataset] = {
     val detectedDefault = defaultPath match {
@@ -116,6 +118,7 @@ object Main {
     }
   }
 
+  // Muestra las estadisticas basicas de la carga actual.
   private def printLoadSummary(dataset: Dataset): Unit = {
     val summary = dataset.summary
     println()

@@ -1,6 +1,7 @@
 import scala.annotation.tailrec
 
 object Phase01 {
+  // Ejecuta la fase de retrasos de salida usando DEP_DELAY.
   def run(dataset: Dataset): Option[PhaseResult] = {
     println()
     println("Fase 01 - DEP_DELAY")

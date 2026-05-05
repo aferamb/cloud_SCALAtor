@@ -5,6 +5,7 @@ import scala.util.Try
 object AppUtils {
   def trim(text: String): String = text.trim
 
+  // Lee un umbral entero y permite cancelar con X sin lanzar excepciones.
   @tailrec
   def readSignedThreshold(prompt: String): Option[Int] = {
     print(prompt)
@@ -31,6 +32,7 @@ object AppUtils {
     if (threshold >= 0) value >= threshold else value <= threshold
   }
 
+  // Cuenta elementos sin usar length de la libreria.
   @tailrec
   def countFields(fields: List[String], acc: Int = 0): Int = {
     fields match {
@@ -39,6 +41,7 @@ object AppUtils {
     }
   }
 
+  // Obtiene una posicion de una lista sin indexacion directa.
   @tailrec
   def fieldAt(fields: List[String], index: Int): String = {
     fields match {
@@ -57,6 +60,7 @@ object AppUtils {
     }
   }
 
+  // Inserta al final conservando el orden sin usar concatenacion de listas.
   def appendString(values: List[String], value: String): List[String] = {
     values match {
       case Nil          => value :: Nil
@@ -64,6 +68,7 @@ object AppUtils {
     }
   }
 
+  // Reconstruye texto desde caracteres sin depender de utilidades prohibidas.
   def charsToString(chars: List[Char]): String = {
     chars match {
       case Nil          => ""

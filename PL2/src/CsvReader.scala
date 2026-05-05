@@ -14,6 +14,7 @@ object CsvReader {
   private val ArrivalDelayColumn = 12
   private val WeatherDelayColumn = 13
 
+  // Carga el fichero CSV y devuelve un Dataset o un mensaje de error controlado.
   def loadDataset(path: String): Either[String, Dataset] = {
     val file = new java.io.File(path)
     if (!file.exists()) {
@@ -34,6 +35,7 @@ object CsvReader {
     }
   }
 
+  // Salta la cabecera y lanza el procesamiento recursivo del resto de lineas.
   private def parseDatasetIterator(path: String, lines: Iterator[String]): Option[Dataset] = {
     if (lines.hasNext) {
       lines.next()
@@ -73,6 +75,7 @@ object CsvReader {
     }
   }
 
+  // Convierte los campos de una linea CSV en un Flight no modificable.
   private def parseFlight(fields: List[String]): Option[Flight] = {
     val fieldCount = AppUtils.countFields(fields)
     if (fieldCount < CsvMinColumnCount) {
@@ -94,6 +97,7 @@ object CsvReader {
     }
   }
 
+  // Actualiza el contador de ausentes cuando una columna no tiene valor valido.
   private def addIfMissing(counter: Int, value: Option[Int]): Int = {
     value match {
       case Some(_) => counter
@@ -101,6 +105,7 @@ object CsvReader {
     }
   }
 
+  // Divide una linea CSV respetando comillas y comas internas.
   private def splitCsvLine(line: String): List[String] = {
     splitCsvChars(line.toList, "", false, Nil)
   }
@@ -128,11 +133,13 @@ object CsvReader {
     }
   }
 
+  // Limpia espacios y comillas exteriores de un campo CSV.
   private def cleanToken(token: String): String = {
     val trimmed = AppUtils.trim(token)
     stripOuterQuotes(trimmed)
   }
 
+  // Detecta si el campo completo venia entre comillas.
   private def stripOuterQuotes(token: String): String = {
     val chars = token.toList
     chars match {
@@ -141,6 +148,7 @@ object CsvReader {
     }
   }
 
+  // Elimina la comilla final si existe tras haber quitado la inicial.
   private def stripClosingQuote(token: String): String = {
     removeLastQuote(token.toList) match {
       case Some(value) => AppUtils.trim(value)
@@ -148,6 +156,7 @@ object CsvReader {
     }
   }
 
+  // Recorre hasta la ultima posicion sin usar last ni reverse.
   private def removeLastQuote(chars: List[Char]): Option[String] = {
     chars match {
       case Nil => None
@@ -160,6 +169,7 @@ object CsvReader {
     }
   }
 
+  // Convierte numeros del CSV a entero, tratando vacios o invalidos como None.
   private def parseIntField(raw: String): Option[Int] = {
     val cleaned = cleanToken(raw)
     cleaned match {

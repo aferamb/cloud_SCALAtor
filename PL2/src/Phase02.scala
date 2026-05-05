@@ -1,6 +1,7 @@
 import scala.annotation.tailrec
 
 object Phase02 {
+  // Ejecuta la fase de retrasos de llegada usando ARR_DELAY y TAIL_NUM.
   def run(dataset: Dataset): Option[PhaseResult] = {
     println()
     println("Fase 02 - ARR_DELAY + TAIL_NUM")
