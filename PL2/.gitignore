@@ -48,6 +48,7 @@ build/
 
 ### Local reference material ###
 PL1_CUDA_REFERENCIA/
+data/
 
 ### Visual Studio / CUDA build outputs ###
 .vs/

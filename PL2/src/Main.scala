@@ -79,7 +79,7 @@ object Main {
     val detectedDefault = defaultPath match {
       case Some(path) => Some(path)
       case None =>
-        val localPath = "PL1_CUDA_REFERENCIA/PL1_CUDA/src/data/Airline_dataset.csv"
+        val localPath = "data/Airline_dataset.csv"
         if (new java.io.File(localPath).exists()) Some(localPath) else None
     }
 
