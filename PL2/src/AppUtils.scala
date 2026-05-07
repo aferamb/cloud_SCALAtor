@@ -28,6 +28,24 @@ object AppUtils {
     readLine()
   }
 
+  // Lee una opcion entera acotada sin usar bucles, permitiendo cancelar con X.
+  // Se reutiliza en Fase 03 y Fase 04 para validar menus internos.
+  @tailrec
+  def readIntegerInRange(prompt: String, errorMessage: String, minValue: Int, maxValue: Int): Option[Int] = {
+    print(prompt)
+    val input = trim(readLine())
+    input match {
+      case "X" | "x" => None
+      case _ =>
+        Try(input.toInt).toOption match {
+          case Some(value) if value >= minValue && value <= maxValue => Some(value)
+          case _ =>
+            println(errorMessage)
+            readIntegerInRange(prompt, errorMessage, minValue, maxValue)
+        }
+    }
+  }
+
   def matchesSignedThreshold(value: Int, threshold: Int): Boolean = {
     if (threshold >= 0) value >= threshold else value <= threshold
   }

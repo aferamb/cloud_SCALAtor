@@ -6,7 +6,7 @@ object Main {
     println("========================================")
     println(" PL2 Scala - US Airline Dataset Toolkit")
     println("========================================")
-    println("Version actual: carga CSV + menu + Fases 01 y 02")
+    println("Version actual: carga CSV + menu + Fases 01 a 04")
 
     promptAndLoadDataset(None) match {
       case Some(dataset) => menuLoop(dataset, None)
@@ -38,13 +38,23 @@ object Main {
             menuLoop(dataset, lastResult)
         }
       case "3" =>
-        println("Fase 03 pendiente de implementar.")
-        AppUtils.pauseForEnter()
-        menuLoop(dataset, lastResult)
+        // Ejecuta la reduccion simple de retrasos y conserva el resumen para la futura subida Cloud.
+        Phase03.run(dataset) match {
+          case Some(result) =>
+            AppUtils.pauseForEnter()
+            menuLoop(dataset, Some(result))
+          case None =>
+            menuLoop(dataset, lastResult)
+        }
       case "4" =>
-        println("Fase 04 pendiente de implementar.")
-        AppUtils.pauseForEnter()
-        menuLoop(dataset, lastResult)
+        // Ejecuta el histograma de aeropuertos y conserva el resumen para la futura subida Cloud.
+        Phase04.run(dataset) match {
+          case Some(result) =>
+            AppUtils.pauseForEnter()
+            menuLoop(dataset, Some(result))
+          case None =>
+            menuLoop(dataset, lastResult)
+        }
       case "R" | "r" =>
         promptAndLoadDataset(Some(dataset.path)) match {
           case Some(newDataset) => menuLoop(newDataset, lastResult)
@@ -56,6 +66,9 @@ object Main {
         menuLoop(dataset, lastResult)
       case "X" | "x" =>
         println("Aplicacion finalizada.")
+      case "" =>
+        // Evita tratar como error un Intro sobrante despues de pausar una fase.
+        menuLoop(dataset, lastResult)
       case _ =>
         println("Opcion no valida.")
         menuLoop(dataset, lastResult)
@@ -65,10 +78,10 @@ object Main {
   private def printMenu(dataset: Dataset): Unit = {
     println()
     println("Menu principal")
-    println("🕐. Fase 01 - Retraso en salida")
-    println("🕑. Fase 02 - Retraso en llegada")
-    println("🕒. Fase 03 - Reduccion de retraso")
-    println("🕓. Fase 04 - Histograma de aeropuertos")
+    println("1. Fase 01 - Retraso en salida")
+    println("2. Fase 02 - Retraso en llegada")
+    println("3. Fase 03 - Reduccion de retraso")
+    println("4. Fase 04 - Histograma de aeropuertos")
     println("R. Recargar CSV")
     println("I. Ver estado de la aplicacion")
     println("X. Salir")

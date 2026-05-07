@@ -85,7 +85,7 @@ validando cada bloque antes de pasar al siguiente.
 - [x] Funcion propia para recorrer listas con acumulador.
 - [x] Funcion propia para seleccionar resultados sin `filter`.
 - [ ] Funcion propia para transformar elementos sin depender de operaciones prohibidas.
-- [ ] Funcion propia para insertar/actualizar pares en histograma.
+- [x] Funcion propia para insertar/actualizar pares en histograma.
 - [ ] Funcion propia para serializar resultados a texto/JSON si no se usa libreria.
 
 ## 5. Fase 01 - Retraso en despegues
@@ -112,22 +112,22 @@ validando cada bloque antes de pasar al siguiente.
 
 ## 7. Fase 03 - Reduccion de retraso
 
-- [ ] Revisar exactamente que hacia la variante `[3.1 Simple]` en la PL1.
-- [ ] Implementar solo esa variante.
-- [ ] Sustituir paralelismo/atomicas CUDA por recursividad de cola.
-- [ ] Calcular el resultado acumulado requerido.
-- [ ] Mostrar resultado por consola.
-- [ ] Guardar un resumen del resultado para posible envio Cloud.
-- [ ] Validar contra la version CUDA, si tenemos ejemplos.
+- [x] Revisar exactamente que hacia la variante `[3.1 Simple]` en la PL1.
+- [x] Implementar solo esa variante.
+- [x] Sustituir paralelismo/atomicas CUDA por recursividad de cola.
+- [x] Calcular el resultado acumulado requerido.
+- [x] Mostrar resultado por consola.
+- [x] Guardar un resumen del resultado para posible envio Cloud.
+- [x] Validar contra ejecucion real con dataset completo.
 
 ## 8. Fase 04 - Histograma de aeropuertos
 
-- [ ] Confirmar si el histograma es por origen, destino o ambos segun PL1.
-- [ ] Implementar histograma mediante recursividad de cola.
-- [ ] Usar lista de pares `(aeropuerto, contador)` salvo que se justifique otra estructura.
-- [ ] Mostrar resultados por consola.
-- [ ] Guardar un resumen del resultado para posible envio Cloud.
-- [ ] Validar contra la version CUDA, si tenemos ejemplos.
+- [x] Confirmar si el histograma es por origen, destino o ambos segun PL1.
+- [x] Implementar histograma mediante recursividad de cola.
+- [x] Usar lista de pares `(aeropuerto, contador)` salvo que se justifique otra estructura.
+- [x] Mostrar resultados por consola.
+- [x] Guardar un resumen del resultado para posible envio Cloud.
+- [x] Validar con dataset completo para origen y destino.
 
 ## 9. Integracion Cloud desde Scala
 
@@ -239,8 +239,8 @@ validando cada bloque antes de pasar al siguiente.
 ## 16. Revision final
 
 - [ ] Ejecutar todas las fases.
-- [ ] Revisar que no hay operaciones Scala prohibidas evidentes.
-- [ ] Revisar que el programa vuelve al menu.
+- [x] Revisar que no hay operaciones Scala prohibidas evidentes.
+- [x] Revisar que el programa vuelve al menu.
 - [ ] Revisar que no se sobrescribe el dataset original.
 - [ ] Revisar trazas por consola.
 - [ ] Revisar envio Cloud.
