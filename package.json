@@ -4,7 +4,6 @@
   "description": "`cloud_SCALAtor` es una aplicacion de consola escrita en Scala para la PL2 de Paradigmas Avanzados de Programacion. Analiza el dataset \"US Airline Dataset\" mediante una adaptacion funcional de las fases obligatorias de la PL1 CUDA.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js"
   },
   "repository": {
