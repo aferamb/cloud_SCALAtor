@@ -60,7 +60,7 @@ object Phase04 {
       histogram: List[AirportCount],
       totalElements: Int
   ): HistogramBuildResult = {
-    // Recorre el dataset y actualiza una lista de pares, evitando mapas mutables.
+    // Recorre el dataset y actualiza una lista de pares con datos no modificables, evitando mapas mutables.
     flights match {
       case Nil => HistogramBuildResult(histogram, totalElements)
       case flight :: tail =>
@@ -87,7 +87,7 @@ object Phase04 {
   }
 
   private def incrementAirport(entries: List[AirportCount], airport: AirportKey): List[AirportCount] = {
-    // Actualiza el contador de un aeropuerto sin usar Map ni colecciones mutables.
+    // Actualiza el contador de un aeropuerto mediante una lista de pares, sin usar Map ni colecciones mutables.
     incrementAirportLoop(entries, airport, Nil)
   }
 
@@ -112,7 +112,7 @@ object Phase04 {
 
   @tailrec
   private def prependProcessed(processed: List[AirportCount], suffix: List[AirportCount]): List[AirportCount] = {
-    // Reconstruye la lista final sin `++` ni `reverse`.
+    // Reconstruye la lista final a partir del prefijo procesado, sin `++` ni `reverse`.
     processed match {
       case Nil          => suffix
       case head :: tail => prependProcessed(tail, head :: suffix)
