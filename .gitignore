@@ -3,3 +3,22 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+data/Airline_dataset.csv
+data/*
+!data/.gitkeep
+
+.bsp/
+.metals/
+.scala-build/
+target/
+project/target/
+PL2/out/
+NOTES_IMPORTANT.md
+Enunciado_PL2_v1.md
+PL2/PENDIENTES.md
+PAP_Enunciado_PL1_v1.md
+
+.idea/*
+PL2/.idea/*
+PL2/src/.idea/*
+PL2/.idea/misc.xml
