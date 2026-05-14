@@ -102,6 +102,23 @@
         background: var(--accent-dark);
       }
 
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.4fr);
+        gap: 16px;
+        align-items: start;
+        margin-top: 16px;
+      }
+
+      .workspace.no-items {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace.no-items .items-panel {
+        display: none;
+      }
+
+      .items-panel,
       .table-wrap,
       .detail {
         margin-top: 16px;
@@ -109,6 +126,28 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         overflow: hidden;
+      }
+
+      .workspace .items-panel,
+      .workspace .table-wrap {
+        margin-top: 0;
+      }
+
+      .items-panel {
+        padding: 16px;
+      }
+
+      .items-panel h2 {
+        margin: 0 0 6px;
+        font-size: 18px;
+      }
+
+      .items-summary {
+        margin-bottom: 12px;
+      }
+
+      .items-table-wrap {
+        overflow-x: auto;
       }
 
       table {
@@ -138,6 +177,10 @@
 
       tr[data-id]:hover {
         background: #f2f7fc;
+      }
+
+      tr[data-id].selected {
+        background: #e6f2ff;
       }
 
       .detail {
@@ -176,8 +219,12 @@
           grid-template-columns: 1fr;
         }
 
-        th:nth-child(5),
-        td:nth-child(5) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .runs-panel th:nth-child(5),
+        .runs-panel td:nth-child(5) {
           display: none;
         }
       }
@@ -232,23 +279,49 @@
 
       <p id="errorBox" class="error hidden"></p>
 
-      <section class="table-wrap" aria-label="Tabla de resultados">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Usuario</th>
-              <th>Fase</th>
-              <th>Resumen</th>
-              <th>Items</th>
-            </tr>
-          </thead>
-          <tbody id="resultsBody">
-            <tr>
-              <td colspan="5">Cargando...</td>
-            </tr>
-          </tbody>
-        </table>
+      <section id="workspace" class="workspace no-items">
+        <section id="itemsPanel" class="items-panel" aria-label="Items de la ejecución">
+          <h2>Items de la ejecución</h2>
+          <p id="itemsSummary" class="items-summary"></p>
+          <div class="items-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Vuelo</th>
+                  <th>Matrícula</th>
+                  <th>Tipo</th>
+                  <th>Minutos</th>
+                  <th>Texto</th>
+                </tr>
+              </thead>
+              <tbody id="itemsBody">
+                <tr>
+                  <td colspan="6">Selecciona una ejecución de Fase 01 o Fase 02</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="table-wrap runs-panel" aria-label="Tabla de resultados">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Usuario</th>
+                <th>Fase</th>
+                <th>Resumen</th>
+                <th>Items</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody">
+              <tr>
+                <td colspan="5">Cargando...</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
       </section>
 
       <section id="detailPanel" class="detail hidden" aria-label="Detalle">
@@ -261,6 +334,9 @@
     <script>
       const resultsBody = document.getElementById('resultsBody');
       const errorBox = document.getElementById('errorBox');
+      const workspace = document.getElementById('workspace');
+      const itemsBody = document.getElementById('itemsBody');
+      const itemsSummary = document.getElementById('itemsSummary');
       const detailPanel = document.getElementById('detailPanel');
       const detailTitle = document.getElementById('detailTitle');
       const detailMeta = document.getElementById('detailMeta');
@@ -285,9 +361,45 @@
         return value === null || value === undefined ? '' : String(value);
       }
 
+      function hideItemsPanel() {
+        workspace.classList.add('no-items');
+        itemsSummary.textContent = '';
+        itemsBody.innerHTML = '<tr><td colspan="6">Selecciona una ejecución de Fase 01 o Fase 02</td></tr>';
+      }
+
+      function isDelayPhase(result) {
+        return result && (result.phaseCode === 'PHASE_01' || result.phaseCode === 'PHASE_02');
+      }
+
+      function renderDelayItems(result, items, itemsShown, itemsTotal) {
+        workspace.classList.remove('no-items');
+        itemsSummary.textContent = `${result.phaseName}: mostrando ${itemsShown} de ${itemsTotal} items`;
+        if (items.length === 0) {
+          itemsBody.innerHTML = '<tr><td colspan="6">No hay items para esta ejecución</td></tr>';
+          return;
+        }
+        itemsBody.innerHTML = items.map((item) => `
+          <tr>
+            <td>${text(item.itemIndex)}</td>
+            <td>${text(item.flightId)}</td>
+            <td>${text(item.tailNum)}</td>
+            <td>${text(item.delayKind)}</td>
+            <td>${text(item.delayMinutes)}</td>
+            <td>${text(item.rawText)}</td>
+          </tr>
+        `).join('');
+      }
+
+      function markSelectedRow(id) {
+        resultsBody.querySelectorAll('tr[data-id]').forEach((row) => {
+          row.classList.toggle('selected', row.dataset.id === String(id));
+        });
+      }
+
       async function loadResults() {
         clearError();
         detailPanel.classList.add('hidden');
+        hideItemsPanel();
         selectedResultId = null;
         const params = new URLSearchParams({
           limit: document.getElementById('resultsLimit').value
@@ -349,6 +461,12 @@
           `;
           detailItems.textContent = JSON.stringify(items, null, 2);
           detailPanel.classList.remove('hidden');
+          markSelectedRow(id);
+          if (isDelayPhase(result)) {
+            renderDelayItems(result, items, itemsShown, itemsTotal);
+          } else {
+            hideItemsPanel();
+          }
         } catch (error) {
           showError(error.message);
         }
