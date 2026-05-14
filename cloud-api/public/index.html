@@ -54,7 +54,12 @@
 
       .filters {
         display: grid;
-        grid-template-columns: minmax(160px, 1fr) minmax(140px, 180px) auto;
+        grid-template-columns:
+          minmax(160px, 1fr)
+          minmax(120px, 160px)
+          minmax(110px, 140px)
+          minmax(120px, 160px)
+          auto;
         gap: 12px;
         align-items: end;
         padding: 16px;
@@ -202,6 +207,26 @@
             <option value="PHASE_04">Fase 04</option>
           </select>
         </label>
+        <label>
+          Ejecuciones
+          <select id="resultsLimit">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+          </select>
+        </label>
+        <label>
+          Items detalle
+          <select id="detailLimit">
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+          </select>
+        </label>
         <button id="refreshButton" type="button">Actualizar</button>
       </section>
 
@@ -240,6 +265,7 @@
       const detailTitle = document.getElementById('detailTitle');
       const detailMeta = document.getElementById('detailMeta');
       const detailItems = document.getElementById('detailItems');
+      let selectedResultId = null;
 
       function showError(message) {
         errorBox.textContent = message;
@@ -262,7 +288,10 @@
       async function loadResults() {
         clearError();
         detailPanel.classList.add('hidden');
-        const params = new URLSearchParams({ limit: '100' });
+        selectedResultId = null;
+        const params = new URLSearchParams({
+          limit: document.getElementById('resultsLimit').value
+        });
         const user = document.getElementById('userFilter').value.trim();
         const phase = document.getElementById('phaseFilter').value;
         if (user) params.set('user', user);
@@ -299,20 +328,26 @@
 
       async function loadDetail(id) {
         clearError();
+        selectedResultId = id;
+        const itemLimit = document.getElementById('detailLimit').value;
         try {
-          const response = await fetch(`/api/results/${id}`);
+          const response = await fetch(`/api/results/${id}?itemLimit=${encodeURIComponent(itemLimit)}`);
           const payload = await response.json();
           if (!response.ok) {
             throw new Error(payload.error || 'No se pudo cargar el detalle');
           }
           const result = payload.result;
+          const items = payload.items || [];
+          const itemsShown = payload.itemsShown === undefined ? items.length : payload.itemsShown;
+          const itemsTotal = payload.itemsTotal === undefined ? result.itemCount : payload.itemsTotal;
           detailTitle.textContent = `${result.phaseName} - ${result.userName}`;
           detailMeta.innerHTML = `
             <p><strong>Fecha:</strong> ${formatDate(result.executedAt)}</p>
             <p><strong>Resumen:</strong> ${text(result.resultSummary)}</p>
             <p><strong>Dataset:</strong> ${text(result.datasetPath)}</p>
+            <p><strong>Items mostrados:</strong> ${text(itemsShown)} de ${text(itemsTotal)}</p>
           `;
-          detailItems.textContent = JSON.stringify(payload.items || [], null, 2);
+          detailItems.textContent = JSON.stringify(items, null, 2);
           detailPanel.classList.remove('hidden');
         } catch (error) {
           showError(error.message);
@@ -320,6 +355,12 @@
       }
 
       document.getElementById('refreshButton').addEventListener('click', loadResults);
+      document.getElementById('resultsLimit').addEventListener('change', loadResults);
+      document.getElementById('detailLimit').addEventListener('change', () => {
+        if (selectedResultId) {
+          loadDetail(selectedResultId);
+        }
+      });
       resultsBody.addEventListener('click', (event) => {
         const row = event.target.closest('tr[data-id]');
         if (row) {

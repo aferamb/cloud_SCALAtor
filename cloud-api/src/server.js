@@ -8,7 +8,7 @@ const { validateResultPayload } = require('./validation');
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '1gb' }));
 
 function clientIp(req) {
   return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')
@@ -48,6 +48,14 @@ function requireDatabase(req, res, next) {
     return;
   }
   next();
+}
+
+function boundedInteger(value, defaultValue, min, max) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) {
+    return defaultValue;
+  }
+  return Math.min(Math.max(parsed, min), max);
 }
 
 async function insertOutputItems(transaction, runId, items) {
@@ -212,6 +220,7 @@ app.get('/api/results/:id', requireDatabase, async (req, res) => {
     return;
   }
 
+  const itemLimit = boundedInteger(req.query.itemLimit, 25, 1, 500);
   const pool = await getPool();
   const run = await pool.request().input('id', sql.Int, id).query(`
     SELECT
@@ -245,8 +254,12 @@ app.get('/api/results/:id', requireDatabase, async (req, res) => {
     return;
   }
 
-  const items = await pool.request().input('id', sql.Int, id).query(`
-    SELECT
+  const items = await pool
+    .request()
+    .input('id', sql.Int, id)
+    .input('item_limit', sql.Int, itemLimit)
+    .query(`
+    SELECT TOP (@item_limit)
       item_index AS itemIndex,
       item_type AS itemType,
       flight_id AS flightId,
@@ -271,7 +284,9 @@ app.get('/api/results/:id', requireDatabase, async (req, res) => {
 
   res.json({
     result: run.recordset[0],
-    items: items.recordset
+    items: items.recordset,
+    itemsShown: items.recordset.length,
+    itemsTotal: run.recordset[0].itemCount
   });
 });
 

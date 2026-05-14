@@ -1,3 +1,5 @@
+const MaxItemsPerRequest = 1000000;
+
 function text(value, fallback = '') {
   if (value === undefined || value === null) {
     return fallback;
@@ -101,8 +103,8 @@ function validateResultPayload(payload) {
     items: items.map(normalizeItem)
   };
 
-  if (normalized.items.length > 5000) {
-    errors.push('items cannot contain more than 5000 rows in one request');
+  if (normalized.items.length > MaxItemsPerRequest) {
+    errors.push(`items cannot contain more than ${MaxItemsPerRequest} rows in one request`);
   }
 
   return {
