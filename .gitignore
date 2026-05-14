@@ -1,5 +1,8 @@
 *.class
 *.log
+node_modules/
+.wrangler/
+cloudflare-pages/.wrangler/
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
@@ -22,3 +25,6 @@ PAP_Enunciado_PL1_v1.md
 PL2/.idea/*
 PL2/src/.idea/*
 PL2/.idea/misc.xml
+.github/workflows/deploy_cloudflare_pages.yml
+cloudflare-pages/
+README_STATUS.md

@@ -1,0 +1,20 @@
+{
+  "name": "cloud-scalator-api",
+  "version": "1.0.0",
+  "description": "API and web viewer for cloud_SCALAtor PL2 results.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/db.js && node --check src/validation.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mssql": "^11.0.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "ISC"
+}

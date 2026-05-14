@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>cloud_SCALAtor Results</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --text: #17202a;
+        --muted: #607080;
+        --line: #d9dee5;
+        --accent: #0f6cbd;
+        --accent-dark: #0a4f8a;
+        --danger: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      header,
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-end;
+      }
+
+      h1 {
+        margin: 0 0 4px;
+        font-size: 28px;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) minmax(140px, 180px) auto;
+        gap: 12px;
+        align-items: end;
+        padding: 16px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      input,
+      select,
+      button {
+        height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font: inherit;
+      }
+
+      input,
+      select {
+        padding: 0 10px;
+        background: #fff;
+      }
+
+      button {
+        padding: 0 14px;
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: var(--accent-dark);
+      }
+
+      .table-wrap,
+      .detail {
+        margin-top: 16px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #eef2f6;
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #3b4a5a;
+      }
+
+      tr[data-id] {
+        cursor: pointer;
+      }
+
+      tr[data-id]:hover {
+        background: #f2f7fc;
+      }
+
+      .detail {
+        padding: 16px;
+      }
+
+      .detail h2 {
+        margin: 0 0 12px;
+        font-size: 18px;
+      }
+
+      pre {
+        max-height: 320px;
+        overflow: auto;
+        padding: 12px;
+        background: #101820;
+        color: #f3f8ff;
+        border-radius: 6px;
+      }
+
+      .error {
+        margin-top: 16px;
+        color: var(--danger);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @media (max-width: 760px) {
+        header {
+          display: block;
+        }
+
+        .filters {
+          grid-template-columns: 1fr;
+        }
+
+        th:nth-child(5),
+        td:nth-child(5) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>cloud_SCALAtor</h1>
+        <p>Resultados enviados desde Scala, ordenados por fecha.</p>
+      </div>
+    </header>
+
+    <main>
+      <section class="filters" aria-label="Filtros">
+        <label>
+          Usuario
+          <input id="userFilter" type="search" placeholder="Buscar usuario">
+        </label>
+        <label>
+          Fase
+          <select id="phaseFilter">
+            <option value="">Todas</option>
+            <option value="PHASE_01">Fase 01</option>
+            <option value="PHASE_02">Fase 02</option>
+            <option value="PHASE_03">Fase 03</option>
+            <option value="PHASE_04">Fase 04</option>
+          </select>
+        </label>
+        <button id="refreshButton" type="button">Actualizar</button>
+      </section>
+
+      <p id="errorBox" class="error hidden"></p>
+
+      <section class="table-wrap" aria-label="Tabla de resultados">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Usuario</th>
+              <th>Fase</th>
+              <th>Resumen</th>
+              <th>Items</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody">
+            <tr>
+              <td colspan="5">Cargando...</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="detailPanel" class="detail hidden" aria-label="Detalle">
+        <h2 id="detailTitle">Detalle</h2>
+        <div id="detailMeta"></div>
+        <pre id="detailItems"></pre>
+      </section>
+    </main>
+
+    <script>
+      const resultsBody = document.getElementById('resultsBody');
+      const errorBox = document.getElementById('errorBox');
+      const detailPanel = document.getElementById('detailPanel');
+      const detailTitle = document.getElementById('detailTitle');
+      const detailMeta = document.getElementById('detailMeta');
+      const detailItems = document.getElementById('detailItems');
+
+      function showError(message) {
+        errorBox.textContent = message;
+        errorBox.classList.remove('hidden');
+      }
+
+      function clearError() {
+        errorBox.textContent = '';
+        errorBox.classList.add('hidden');
+      }
+
+      function formatDate(value) {
+        return value ? new Date(value).toLocaleString() : '';
+      }
+
+      function text(value) {
+        return value === null || value === undefined ? '' : String(value);
+      }
+
+      async function loadResults() {
+        clearError();
+        detailPanel.classList.add('hidden');
+        const params = new URLSearchParams({ limit: '100' });
+        const user = document.getElementById('userFilter').value.trim();
+        const phase = document.getElementById('phaseFilter').value;
+        if (user) params.set('user', user);
+        if (phase) params.set('phase', phase);
+
+        try {
+          const response = await fetch(`/api/results?${params.toString()}`);
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || 'No se pudieron cargar los resultados');
+          }
+          renderRows(payload.results || []);
+        } catch (error) {
+          resultsBody.innerHTML = '<tr><td colspan="5">Sin datos disponibles</td></tr>';
+          showError(error.message);
+        }
+      }
+
+      function renderRows(rows) {
+        if (rows.length === 0) {
+          resultsBody.innerHTML = '<tr><td colspan="5">No hay resultados</td></tr>';
+          return;
+        }
+        resultsBody.innerHTML = rows.map((row) => `
+          <tr data-id="${row.id}">
+            <td>${formatDate(row.executedAt)}</td>
+            <td>${text(row.userName)}</td>
+            <td>${text(row.phaseName)}</td>
+            <td>${text(row.resultSummary)}</td>
+            <td>${text(row.itemCount)}</td>
+          </tr>
+        `).join('');
+      }
+
+      async function loadDetail(id) {
+        clearError();
+        try {
+          const response = await fetch(`/api/results/${id}`);
+          const payload = await response.json();
+          if (!response.ok) {
+            throw new Error(payload.error || 'No se pudo cargar el detalle');
+          }
+          const result = payload.result;
+          detailTitle.textContent = `${result.phaseName} - ${result.userName}`;
+          detailMeta.innerHTML = `
+            <p><strong>Fecha:</strong> ${formatDate(result.executedAt)}</p>
+            <p><strong>Resumen:</strong> ${text(result.resultSummary)}</p>
+            <p><strong>Dataset:</strong> ${text(result.datasetPath)}</p>
+          `;
+          detailItems.textContent = JSON.stringify(payload.items || [], null, 2);
+          detailPanel.classList.remove('hidden');
+        } catch (error) {
+          showError(error.message);
+        }
+      }
+
+      document.getElementById('refreshButton').addEventListener('click', loadResults);
+      resultsBody.addEventListener('click', (event) => {
+        const row = event.target.closest('tr[data-id]');
+        if (row) {
+          loadDetail(row.dataset.id);
+        }
+      });
+
+      loadResults();
+    </script>
+  </body>
+</html>

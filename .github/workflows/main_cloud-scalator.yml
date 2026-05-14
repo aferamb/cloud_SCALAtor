@@ -7,6 +7,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'cloud-api/**'
+      - '.github/workflows/main_cloud-scalator.yml'
   workflow_dispatch:
 
 jobs:
@@ -24,8 +27,10 @@ jobs:
           node-version: '24.x'
 
       - name: npm install, build, and test
+        working-directory: cloud-api
         run: |
-          npm install
+          npm ci
+          npm run check
           npm run build --if-present
           npm run test --if-present
 
@@ -33,7 +38,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: cloud-api
 
   deploy:
     runs-on: ubuntu-latest
@@ -47,6 +52,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
+          path: node-app
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -61,5 +67,5 @@ jobs:
         with:
           app-name: 'cloud-SCALAtor'
           slot-name: 'Production'
-          package: .
+          package: node-app
           
