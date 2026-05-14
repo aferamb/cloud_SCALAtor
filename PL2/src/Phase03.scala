@@ -2,7 +2,7 @@ import scala.annotation.tailrec
 
 object Phase03 {
   // Punto de entrada de la fase: recoge las opciones de columna y reduccion desde consola.
-  def run(dataset: Dataset): Option[PhaseResult] = {
+  def run(dataset: Dataset, itemLimit: Int): Option[PhaseResult] = {
     println()
     println("Fase 03 - Reduccion")
     println("1. DEP_DELAY  2. ARR_DELAY  3. WEATHER_DELAY")
@@ -12,7 +12,7 @@ object Phase03 {
         println("1. Maximo  2. Minimo")
         AppUtils.readIntegerInRange("Reduccion: ", "Debe introducir un numero entre 1 y 2, o X.", 1, 2) match {
           case Some(reductionOption) =>
-            executeReduction(dataset.flights, columnOption, reductionOption)
+            executeReduction(dataset.flights, columnOption, reductionOption, itemLimit)
           case None => None
         }
       case None => None
@@ -22,7 +22,8 @@ object Phase03 {
   private def executeReduction(
       flights: List[Flight],
       columnOption: Int,
-      reductionOption: Int
+      reductionOption: Int,
+      itemLimit: Int
   ): Option[PhaseResult] = {
     // Traduce las opciones numericas del menu a etiquetas y ejecuta solo la variante Simple.
     val columnLabel = columnName(columnOption)
@@ -35,12 +36,28 @@ object Phase03 {
       case Some(ReductionState(result, validCount)) =>
         println(s"$columnLabel | $reductionLabel | validos $validCount")
         println()
-        println(s"[Simple] $reductionFunctionLabel() $columnLabel = $result minutos")
+        val rawText = s"[Simple] $reductionFunctionLabel() $columnLabel = $result minutos"
+        println(rawText)
+        val item = CloudResultItem(
+          itemType = "reduction",
+          reductionColumn = Some(columnLabel),
+          reductionType = Some(reductionLabel),
+          reductionValue = Some(result),
+          validCount = Some(validCount),
+          rawText = Some(s"$rawText; validos=$validCount")
+        )
+        val items = if (itemLimit >= 1) item :: Nil else Nil
+        val sentItems = if (itemLimit >= 1) 1 else 0
         Some(
           PhaseResult(
+            "PHASE_03",
             "Fase 03 - Reduccion de retraso",
-            s"columna=$columnLabel; reduccion=$reductionLabel",
-            s"[Simple] $reductionFunctionLabel() $columnLabel = $result minutos; validos=$validCount"
+            s"""{"column":"$columnLabel","reduction":"$reductionLabel"}""",
+            s"$rawText; validos=$validCount",
+            items,
+            1,
+            sentItems,
+            sentItems < 1
           )
         )
       case None =>

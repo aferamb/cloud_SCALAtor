@@ -6,72 +6,72 @@ object Main {
     println("========================================")
     println(" PL2 Scala - US Airline Dataset Toolkit")
     println("========================================")
-    println("Version actual: carga CSV + menu + Fases 01 a 04")
+    println("Version actual: carga CSV + menu + Fases 01 a 04 + envio Cloud")
+
+    val cloudConfig = CloudConfigReader.loadAndConfirm()
 
     promptAndLoadDataset(None) match {
-      case Some(dataset) => menuLoop(dataset, None)
+      case Some(dataset) => menuLoop(dataset, None, cloudConfig)
       case None          => println("Saliendo sin cargar dataset.")
     }
   }
 
   // Mantiene el menu activo mediante recursividad de cola.
   @tailrec
-  private def menuLoop(dataset: Dataset, lastResult: Option[PhaseResult]): Unit = {
+  private def menuLoop(dataset: Dataset, lastResult: Option[PhaseResult], cloudConfig: CloudConfig): Unit = {
     printMenu(dataset)
     val option = AppUtils.trim(readLine("> "))
 
     option match {
       case "1" =>
-        Phase01.run(dataset) match {
+        Phase01.run(dataset, cloudConfig.itemLimit) match {
           case Some(result) =>
-            AppUtils.pauseForEnter()
-            menuLoop(dataset, Some(result))
+            offerCloudUpload(dataset, result, cloudConfig)
+            menuLoop(dataset, Some(result), cloudConfig)
           case None =>
-            menuLoop(dataset, lastResult)
+            menuLoop(dataset, lastResult, cloudConfig)
         }
       case "2" =>
-        Phase02.run(dataset) match {
+        Phase02.run(dataset, cloudConfig.itemLimit) match {
           case Some(result) =>
-            AppUtils.pauseForEnter()
-            menuLoop(dataset, Some(result))
+            offerCloudUpload(dataset, result, cloudConfig)
+            menuLoop(dataset, Some(result), cloudConfig)
           case None =>
-            menuLoop(dataset, lastResult)
+            menuLoop(dataset, lastResult, cloudConfig)
         }
       case "3" =>
-        // Ejecuta la reduccion simple de retrasos y conserva el resumen para la futura subida Cloud.
-        Phase03.run(dataset) match {
+        Phase03.run(dataset, cloudConfig.itemLimit) match {
           case Some(result) =>
-            AppUtils.pauseForEnter()
-            menuLoop(dataset, Some(result))
+            offerCloudUpload(dataset, result, cloudConfig)
+            menuLoop(dataset, Some(result), cloudConfig)
           case None =>
-            menuLoop(dataset, lastResult)
+            menuLoop(dataset, lastResult, cloudConfig)
         }
       case "4" =>
-        // Ejecuta el histograma de aeropuertos y conserva el resumen para la futura subida Cloud.
-        Phase04.run(dataset) match {
+        Phase04.run(dataset, cloudConfig.itemLimit) match {
           case Some(result) =>
-            AppUtils.pauseForEnter()
-            menuLoop(dataset, Some(result))
+            offerCloudUpload(dataset, result, cloudConfig)
+            menuLoop(dataset, Some(result), cloudConfig)
           case None =>
-            menuLoop(dataset, lastResult)
+            menuLoop(dataset, lastResult, cloudConfig)
         }
       case "R" | "r" =>
         promptAndLoadDataset(Some(dataset.path)) match {
-          case Some(newDataset) => menuLoop(newDataset, lastResult)
-          case None             => menuLoop(dataset, lastResult)
+          case Some(newDataset) => menuLoop(newDataset, lastResult, cloudConfig)
+          case None             => menuLoop(dataset, lastResult, cloudConfig)
         }
       case "I" | "i" =>
-        printLoadSummary(dataset)
+        printApplicationState(dataset, cloudConfig, lastResult)
         AppUtils.pauseForEnter()
-        menuLoop(dataset, lastResult)
+        menuLoop(dataset, lastResult, cloudConfig)
       case "X" | "x" =>
         println("Aplicacion finalizada.")
       case "" =>
         // Evita tratar como error un Intro sobrante despues de pausar una fase.
-        menuLoop(dataset, lastResult)
+        menuLoop(dataset, lastResult, cloudConfig)
       case _ =>
         println("Opcion no valida.")
-        menuLoop(dataset, lastResult)
+        menuLoop(dataset, lastResult, cloudConfig)
     }
   }
 
@@ -86,6 +86,26 @@ object Main {
     println("I. Ver estado de la aplicacion")
     println("X. Salir")
     println(s"CSV actual: ${dataset.path}")
+  }
+
+  private def offerCloudUpload(dataset: Dataset, result: PhaseResult, cloudConfig: CloudConfig): Unit = {
+    println()
+    println(s"Items para enviar: ${result.sentItemCount} de ${result.totalItemCount}")
+    if (result.itemsTruncated) {
+      println(s"Se enviaran solo los primeros ${result.sentItemCount} items por el limite configurado.")
+    }
+
+    if (AppUtils.readYesNo("Enviar este resultado a la API? [S/n]: ", true)) {
+      CloudApiClient.postResult(cloudConfig, dataset, result) match {
+        case Right(body) =>
+          println("Resultado enviado correctamente.")
+          println(s"Respuesta API: $body")
+        case Left(error) =>
+          println(error)
+      }
+    }
+
+    AppUtils.pauseForEnter()
   }
 
   // Solicita la ruta del CSV, ofrece una ruta local por defecto y reintenta si falla.
@@ -132,7 +152,11 @@ object Main {
   }
 
   // Muestra las estadisticas basicas de la carga actual.
-  private def printLoadSummary(dataset: Dataset): Unit = {
+  private def printApplicationState(
+      dataset: Dataset,
+      cloudConfig: CloudConfig,
+      lastResult: Option[PhaseResult]
+  ): Unit = {
     val summary = dataset.summary
     println()
     println("Estado de la aplicacion")
@@ -143,5 +167,15 @@ object Main {
     println(s"DEP_DELAY faltantes: ${summary.missingDepartureDelay}")
     println(s"ARR_DELAY faltantes: ${summary.missingArrivalDelay}")
     println(s"WEATHER_DELAY faltantes: ${summary.missingWeatherDelay}")
+    println(s"API Cloud: ${cloudConfig.apiUrl}")
+    println(s"Usuario Cloud: ${cloudConfig.userName}")
+    println(s"Limite de items Cloud: ${cloudConfig.itemLimit}")
+    lastResult match {
+      case Some(result) =>
+        println(s"Ultima fase: ${result.phaseName}")
+        println(s"Ultimo resumen: ${result.resultSummary}")
+      case None =>
+        println("Ultima fase: ninguna")
+    }
   }
 }

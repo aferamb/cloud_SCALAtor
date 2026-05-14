@@ -46,6 +46,7 @@ build/
 ### Local reference material ###
 PL1_CUDA_REFERENCIA/
 data/
+cloud-api.properties
 
 ### Visual Studio / CUDA build outputs ###
 .vs/

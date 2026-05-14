@@ -28,3 +28,4 @@ PL2/.idea/misc.xml
 .github/workflows/deploy_cloudflare_pages.yml
 cloudflare-pages/
 README_STATUS.md
+PL2/cloud-api.properties

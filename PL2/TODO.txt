@@ -131,22 +131,22 @@ validando cada bloque antes de pasar al siguiente.
 
 ## 9. Integracion Cloud desde Scala
 
-- [ ] Decidir estrategia de menu:
+- [x] Decidir estrategia de menu:
   - [ ] Opcion extra "subir los datos al Cloud".
-  - [ ] O preguntar tras terminar cada fase si se quiere subir.
-- [ ] Recomendacion inicial: preguntar tras cada fase.
-- [ ] Pedir nombre de usuario.
-- [ ] Guardar fecha y hora actual.
-- [ ] Preparar objeto de resultado con:
-  - [ ] usuario.
-  - [ ] fecha/hora.
-  - [ ] fase ejecutada.
-  - [ ] parametros de entrada.
-  - [ ] resumen o datos de resultado.
-- [ ] Crear cliente HTTP en Scala.
-- [ ] Enviar datos por `POST` a la API.
-- [ ] Gestionar errores de conexion.
-- [ ] Mostrar confirmacion si la subida se realiza correctamente.
+  - [x] O preguntar tras terminar cada fase si se quiere subir.
+- [x] Recomendacion inicial: preguntar tras cada fase.
+- [x] Pedir nombre de usuario.
+- [x] Guardar fecha y hora actual.
+- [x] Preparar objeto de resultado con:
+  - [x] usuario.
+  - [x] fecha/hora.
+  - [x] fase ejecutada.
+  - [x] parametros de entrada.
+  - [x] resumen o datos de resultado.
+- [x] Crear cliente HTTP en Scala.
+- [x] Enviar datos por `POST` a la API.
+- [x] Gestionar errores de conexion.
+- [x] Mostrar confirmacion si la subida se realiza correctamente.
 
 ## 10. API Node.js para Azure App Service
 

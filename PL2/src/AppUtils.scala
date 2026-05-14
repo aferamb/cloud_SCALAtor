@@ -78,6 +78,28 @@ object AppUtils {
     }
   }
 
+  @tailrec
+  def restoreResultItemsOrder(values: List[CloudResultItem], acc: List[CloudResultItem]): List[CloudResultItem] = {
+    values match {
+      case Nil          => acc
+      case head :: tail => restoreResultItemsOrder(tail, head :: acc)
+    }
+  }
+
+  @tailrec
+  def readYesNo(prompt: String, defaultValue: Boolean): Boolean = {
+    print(prompt)
+    val input = trim(readLine())
+    input match {
+      case ""      => defaultValue
+      case "S" | "s" | "SI" | "Si" | "si" => true
+      case "N" | "n" | "NO" | "No" | "no" => false
+      case _ =>
+        println("Debe responder S o N.")
+        readYesNo(prompt, defaultValue)
+    }
+  }
+
   // Inserta al final conservando el orden sin usar concatenacion de listas.
   def appendString(values: List[String], value: String): List[String] = {
     values match {

@@ -4,7 +4,7 @@ object Phase04 {
   private val MaxBarWidth = 40
 
   // Punto de entrada de la fase: elige origen/destino y umbral minimo de visualizacion.
-  def run(dataset: Dataset): Option[PhaseResult] = {
+  def run(dataset: Dataset, itemLimit: Int): Option[PhaseResult] = {
     println()
     println("Fase 04 - Histograma de aeropuertos")
     println("1. Origen  2. Destino")
@@ -18,7 +18,7 @@ object Phase04 {
           Int.MaxValue
         ) match {
           case Some(threshold) =>
-            executeHistogram(dataset.flights, airportOption, threshold)
+            executeHistogram(dataset.flights, airportOption, threshold, itemLimit)
           case None => None
         }
       case None => None
@@ -28,7 +28,8 @@ object Phase04 {
   private def executeHistogram(
       flights: List[Flight],
       airportOption: Int,
-      threshold: Int
+      threshold: Int,
+      itemLimit: Int
   ): Option[PhaseResult] = {
     // Construye el histograma completo y despues aplica el umbral solo al imprimir.
     val airportLabel = if (airportOption == 1) "origen" else "destino"
@@ -43,11 +44,24 @@ object Phase04 {
         println(s"$airportLabel | filas validas $totalElements | bins ${countEntries(entries, 0)}")
         val totalAirports = countEntries(entries, 0)
         printHistogram(airportLabel, threshold, entries, stats.maximumShownCount, totalAirports)
+        val itemState = buildHistogramItems(
+          entries,
+          threshold,
+          stats.maximumShownCount,
+          airportLabel,
+          itemLimit,
+          HistogramItemState(0, 0, Nil)
+        )
         Some(
           PhaseResult(
+            "PHASE_04",
             "Fase 04 - Histograma de aeropuertos",
-            s"tipo=$airportLabel; umbral=$threshold",
-            s"Aeropuertos mostrados=${stats.shownAirports}; total=$totalAirports; filas validas=$totalElements"
+            s"""{"airportType":"$airportLabel","threshold":$threshold}""",
+            s"Aeropuertos mostrados=${stats.shownAirports}; total=$totalAirports; filas validas=$totalElements",
+            AppUtils.restoreResultItemsOrder(itemState.items, Nil),
+            itemState.totalItems,
+            itemState.sentItems,
+            itemState.totalItems > itemState.sentItems
           )
         )
     }
@@ -112,7 +126,7 @@ object Phase04 {
 
   @tailrec
   private def prependProcessed(processed: List[AirportCount], suffix: List[AirportCount]): List[AirportCount] = {
-    // Reconstruye la lista final a partir del prefijo procesado, sin `++` ni `reverse`.
+    // Reconstruye la lista final a partir del prefijo procesado con recursion propia (sin `++` ni `reverse`).
     processed match {
       case Nil          => suffix
       case head :: tail => prependProcessed(tail, head :: suffix)
@@ -202,8 +216,59 @@ object Phase04 {
     if (times <= 0) "" else char.toString + repeatChar(char, times - 1)
   }
 
+  @tailrec
+  private def buildHistogramItems(
+      entries: List[AirportCount],
+      threshold: Int,
+      maximumShownCount: Int,
+      airportLabel: String,
+      itemLimit: Int,
+      state: HistogramItemState
+  ): HistogramItemState = {
+    entries match {
+      case Nil => state
+      case head :: tail =>
+        if (head.count >= threshold) {
+          val barText = barForCount(head.count, maximumShownCount)
+          val rawText = s"${head.airport.code} (${head.airport.seqId}) | ${head.count} $barText"
+          val nextState = storeHistogramItem(state, itemLimit, head, airportLabel, barText, rawText)
+          buildHistogramItems(tail, threshold, maximumShownCount, airportLabel, itemLimit, nextState)
+        } else {
+          buildHistogramItems(tail, threshold, maximumShownCount, airportLabel, itemLimit, state)
+        }
+    }
+  }
+
+  private def storeHistogramItem(
+      state: HistogramItemState,
+      itemLimit: Int,
+      airportCount: AirportCount,
+      airportLabel: String,
+      barText: String,
+      rawText: String
+  ): HistogramItemState = {
+    val counted = state.copy(totalItems = state.totalItems + 1)
+    if (counted.sentItems < itemLimit) {
+      counted.copy(
+        sentItems = counted.sentItems + 1,
+        items = CloudResultItem(
+          itemType = "airport_histogram",
+          airportCode = Some(airportCount.airport.code),
+          airportSeqId = Some(airportCount.airport.seqId),
+          airportKind = Some(airportLabel),
+          airportCount = Some(airportCount.count),
+          barText = Some(barText),
+          rawText = Some(rawText)
+        ) :: counted.items
+      )
+    } else {
+      counted
+    }
+  }
+
   private final case class AirportKey(seqId: Int, code: String)
   private final case class AirportCount(airport: AirportKey, count: Int)
   private final case class HistogramBuildResult(entries: List[AirportCount], totalElements: Int)
   private final case class HistogramStats(shownAirports: Int, maximumShownCount: Int)
+  private final case class HistogramItemState(totalItems: Int, sentItems: Int, items: List[CloudResultItem])
 }

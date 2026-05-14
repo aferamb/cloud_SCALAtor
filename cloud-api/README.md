@@ -21,6 +21,14 @@ npm start
 
 Antes de insertar resultados hay que crear las tablas de `db/schema.sql` en Azure SQL y completar `.env` con la cadena de conexion.
 
+Desde Scala, la URL que debe configurarse en `PL2/cloud-api.properties` es esta:
+
+```properties
+api.url=http://localhost:3000/api/results
+```
+
+En Azure se sustituye por la URL publica del App Service.
+
 ## Endpoints
 
 - `GET /`: visor HTML.
@@ -39,7 +47,12 @@ curl -X POST http://localhost:3000/api/results \
     "userName": "alumno1",
     "executedAt": "2026-05-08T12:00:00+02:00",
     "phase": { "code": "PHASE_01", "name": "Fase 01 - Retraso en salida" },
-    "inputOptions": { "threshold": 1440 },
+    "inputOptions": {
+      "phaseOptions": { "threshold": 1440, "delayColumn": "DEP_DELAY" },
+      "totalItemCount": 2,
+      "sentItemCount": 1,
+      "itemsTruncated": true
+    },
     "summary": "Coincidencias encontradas: 2",
     "dataset": {
       "path": "PL2/data/Airline_dataset.csv",
@@ -68,3 +81,7 @@ curl -X POST http://localhost:3000/api/results \
 - Fase 02: igual que Fase 01 y ademas `tailNum`.
 - Fase 03: `itemType=reduction`, `reductionColumn`, `reductionType`, `reductionValue`, `validCount`.
 - Fase 04: `itemType=airport_histogram`, `airportKind`, `airportCode`, `airportSeqId`, `airportCount`, `barText`.
+
+El cliente Scala envia como maximo `items.limit` detalles por ejecucion. El
+resumen mantiene el total real y `inputOptions.itemsTruncated` indica si se
+recorto la lista enviada.

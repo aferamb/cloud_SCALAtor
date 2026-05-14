@@ -4,9 +4,9 @@
 Paradigmas Avanzados de Programacion. Analiza el dataset "US Airline Dataset"
 mediante una adaptacion funcional de las fases obligatorias de la PL1 CUDA.
 
-La parte Scala local esta implementada. La integracion Cloud indicada en el
-enunciado de PL2 queda pendiente por ahora: no hay todavia API, envio HTTP,
-base de datos ni visor web desplegado.
+La parte Scala local esta implementada y puede enviar resultados a la API Cloud
+incluida en `cloud-api`. La API se despliega como App Service, guarda en Azure
+SQL y sirve un visor HTML con los resultados recibidos.
 
 ## Estado
 
@@ -21,8 +21,10 @@ Funcionalidad disponible:
 - Fase 03: reduccion simple de maximo o minimo sobre `DEP_DELAY`, `ARR_DELAY`
   o `WEATHER_DELAY`;
 - Fase 04: histograma textual de aeropuertos de origen o destino;
-- resumen compacto de cada fase mediante `PhaseResult`, preparado como base
-  para la futura conexion Cloud.
+- resultado estructurado de cada fase mediante `PhaseResult` e items
+  normalizados para enviar al Cloud;
+- configuracion local de URL, usuario y limite de items;
+- envio HTTP opcional tras cada fase a `POST /api/results`.
 
 Restricciones funcionales revisadas en `PL2/src`:
 
@@ -49,6 +51,8 @@ Restricciones funcionales revisadas en `PL2/src`:
     │   └── Airline_dataset.csv
     └── src
         ├── AppUtils.scala
+        ├── CloudApiClient.scala
+        ├── CloudConfigReader.scala
         ├── CsvReader.scala
         ├── Main.scala
         ├── Models.scala
@@ -61,9 +65,11 @@ Restricciones funcionales revisadas en `PL2/src`:
 Responsabilidades principales:
 
 - `Main.scala`: punto de entrada, carga inicial del CSV, menu principal,
-  recarga y estado de la aplicacion.
+  configuracion Cloud, recarga, estado y subida opcional de resultados.
 - `Models.scala`: modelos inmutables `Flight`, `LoadSummary`, `Dataset` y
-  `PhaseResult`.
+  `PhaseResult`, ademas de los modelos Cloud.
+- `CloudConfigReader.scala`: lee `cloud-api.properties` y permite cambiar los valores solo para la ejecucion actual.
+- `CloudApiClient.scala`: serializa JSON y envia resultados con HTTP.
 - `CsvReader.scala`: apertura del fichero, lectura de cabecera, parseo CSV,
   conversion de campos y resumen de carga.
 - `AppUtils.scala`: utilidades comunes de consola, validacion y recorridos
@@ -93,9 +99,11 @@ participan en filtros ni reducciones.
 
 ## Menu
 
-Al arrancar, la aplicacion solicita la ruta del CSV. Si encuentra una ruta por
-defecto, se puede pulsar Intro para usarla. Si la ruta no existe o no se puede
-leer, se muestra un error y se vuelve a pedir.
+Al arrancar, la aplicacion carga `cloud-api.properties` si existe y pregunta si
+se mantiene o cambia la URL de la API, el usuario y el limite de items. Despues
+solicita la ruta del CSV. Si encuentra una ruta por defecto, se puede pulsar
+Intro para usarla. Si la ruta no existe o no se puede leer, se muestra un error
+y se vuelve a pedir.
 
 ```text
 Menu principal
@@ -110,7 +118,8 @@ CSV actual: <ruta>
 ```
 
 Las opciones de fase vuelven al menu al terminar. En los menus internos se puede
-usar `X` para cancelar y volver.
+usar `X` para cancelar y volver. Tras una fase completada, la aplicacion
+pregunta si se quiere enviar ese resultado al Cloud.
 
 ## Fases
 
@@ -172,7 +181,8 @@ Pasos recomendados:
 1. Abrir la carpeta `PL2` en IntelliJ IDEA.
 2. Configurar JDK y Scala SDK si IntelliJ lo solicita.
 3. Ejecutar el objeto `Main`.
-4. Pulsar Intro para usar una ruta detectada o introducir la ruta del CSV.
+4. Confirmar o cambiar la configuracion Cloud.
+5. Pulsar Intro para usar una ruta detectada o introducir la ruta del CSV.
 
 Si se dispone de `scalac` y `scala` instalados localmente, tambien se puede
 ejecutar desde la raiz:
@@ -191,11 +201,21 @@ scalac -d out src/*.scala
 scala -cp out Main
 ```
 
-## Pendiente Cloud
+## Integracion Cloud
 
-Segun `Enunciado_PL2_v1.md` y `NOTES_IMPORTANT.md`, la entrega completa debera
-anadir una aplicacion web en Azure App Service con API y un visor HTML. El Scala
-local debera enviar resultados a esa API, incluyendo fase ejecutada, opciones de
-entrada, resultado, usuario y fecha/hora.
+El fichero local real se llama `PL2/cloud-api.properties` y queda ignorado por
+git. Hay un ejemplo versionado en `PL2/cloud-api.example.properties`:
 
-Ese bloque no esta implementado todavia.
+```properties
+api.url=http://localhost:3000/api/results
+user.name=alumno.demo
+items.limit=5000
+```
+
+`api.url` puede ser la URL completa de `POST /api/results` o la URL base del
+App Service. Si se indica la base, Scala completa `/api/results`.
+
+Al enviar, Scala construye un JSON con `userName`, `executedAt`, `phase`,
+`inputOptions`, `summary`, `dataset`, `sourceApp` e `items`. Si una fase produce
+mas detalles que `items.limit`, se envia solo ese maximo y `inputOptions`
+incluye cuantos items habia realmente.
