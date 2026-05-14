@@ -816,12 +816,14 @@ Funciones actuales:
 - Mostrar el JSON de items en el panel de detalle.
 - Para Fase 01 y Fase 02, mostrar una tabla lateral de items con una fila por
   vuelo cargado.
+- Para Fase 04, mostrar una tabla lateral de histograma con aeropuerto, ID,
+  numero de vuelos y barra horizontal proporcional.
 
-Distribucion de la pantalla para Fase 01/Fase 02:
+Distribucion de la pantalla para Fase 01, Fase 02 y Fase 04:
 
 ```mermaid
 flowchart LR
-  Items["Tabla izquierda<br/>items del run seleccionado"]
+  Items["Panel izquierdo<br/>vuelos o histograma"]
   Runs["Tabla derecha<br/>runs/fases"]
   Detail["Panel inferior<br/>JSON del detalle"]
 
@@ -829,10 +831,13 @@ flowchart LR
   Runs -->|"click run"| Detail
 ```
 
-Para Fase 03 y Fase 04, el detalle se ve como JSON. Los datos del histograma de
-Fase 04 ya se guardan en columnas (`airport_code`, `airport_count`, `bar_text`),
-asi que se podria crear una vista especializada de barras sin cambiar la base de
-datos.
+Para Fase 04, las barras se calculan en el navegador a partir de
+`airport_count`. La barra mayor de los items cargados ocupa el 100% del ancho y
+el resto se escala proporcionalmente. El selector `Items detalle` decide cuantos
+aeropuertos se cargan y se representan.
+
+Para Fase 03, el detalle se mantiene como JSON porque la fase produce un unico
+item de reduccion.
 
 ## Limites Actuales
 

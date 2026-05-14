@@ -150,6 +150,28 @@
         overflow-x: auto;
       }
 
+      .histogram-count {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .histogram-bar {
+        width: 100%;
+        min-width: 160px;
+        height: 18px;
+        overflow: hidden;
+        background: #e8edf3;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+
+      .histogram-fill {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -281,12 +303,12 @@
 
       <section id="workspace" class="workspace no-items">
         <section id="itemsPanel" class="items-panel" aria-label="Items de la ejecución">
-          <h2>Items de la ejecución</h2>
+          <h2 id="itemsTitle">Items de la ejecución</h2>
           <p id="itemsSummary" class="items-summary"></p>
           <div class="items-table-wrap">
             <table>
               <thead>
-                <tr>
+                <tr id="itemsHeader">
                   <th>#</th>
                   <th>Vuelo</th>
                   <th>Matrícula</th>
@@ -335,6 +357,8 @@
       const resultsBody = document.getElementById('resultsBody');
       const errorBox = document.getElementById('errorBox');
       const workspace = document.getElementById('workspace');
+      const itemsTitle = document.getElementById('itemsTitle');
+      const itemsHeader = document.getElementById('itemsHeader');
       const itemsBody = document.getElementById('itemsBody');
       const itemsSummary = document.getElementById('itemsSummary');
       const detailPanel = document.getElementById('detailPanel');
@@ -361,9 +385,46 @@
         return value === null || value === undefined ? '' : String(value);
       }
 
+      function html(value) {
+        return text(value).replace(/[&<>"']/g, (char) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[char]));
+      }
+
+      function numberValue(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function delayHeader() {
+        return `
+          <th>#</th>
+          <th>Vuelo</th>
+          <th>Matrícula</th>
+          <th>Tipo</th>
+          <th>Minutos</th>
+          <th>Texto</th>
+        `;
+      }
+
+      function histogramHeader() {
+        return `
+          <th>Aeropuerto</th>
+          <th>ID</th>
+          <th>Vuelos</th>
+          <th>Barra</th>
+        `;
+      }
+
       function hideItemsPanel() {
         workspace.classList.add('no-items');
+        itemsTitle.textContent = 'Items de la ejecución';
         itemsSummary.textContent = '';
+        itemsHeader.innerHTML = delayHeader();
         itemsBody.innerHTML = '<tr><td colspan="6">Selecciona una ejecución de Fase 01 o Fase 02</td></tr>';
       }
 
@@ -371,23 +432,66 @@
         return result && (result.phaseCode === 'PHASE_01' || result.phaseCode === 'PHASE_02');
       }
 
+      function isHistogramPhase(result) {
+        return result && result.phaseCode === 'PHASE_04';
+      }
+
       function renderDelayItems(result, items, itemsShown, itemsTotal) {
         workspace.classList.remove('no-items');
+        itemsTitle.textContent = 'Items de la ejecución';
         itemsSummary.textContent = `${result.phaseName}: mostrando ${itemsShown} de ${itemsTotal} items`;
+        itemsHeader.innerHTML = delayHeader();
         if (items.length === 0) {
           itemsBody.innerHTML = '<tr><td colspan="6">No hay items para esta ejecución</td></tr>';
           return;
         }
         itemsBody.innerHTML = items.map((item) => `
           <tr>
-            <td>${text(item.itemIndex)}</td>
-            <td>${text(item.flightId)}</td>
-            <td>${text(item.tailNum)}</td>
-            <td>${text(item.delayKind)}</td>
-            <td>${text(item.delayMinutes)}</td>
-            <td>${text(item.rawText)}</td>
+            <td>${html(item.itemIndex)}</td>
+            <td>${html(item.flightId)}</td>
+            <td>${html(item.tailNum)}</td>
+            <td>${html(item.delayKind)}</td>
+            <td>${html(item.delayMinutes)}</td>
+            <td>${html(item.rawText)}</td>
           </tr>
         `).join('');
+      }
+
+      function maximumAirportCount(items) {
+        return items.reduce((maximum, item) => {
+          const count = numberValue(item.airportCount);
+          return count > maximum ? count : maximum;
+        }, 0);
+      }
+
+      function renderHistogramItems(result, items, itemsShown, itemsTotal) {
+        workspace.classList.remove('no-items');
+        itemsTitle.textContent = 'Histograma de aeropuertos';
+        itemsSummary.textContent = `${result.phaseName}: mostrando ${itemsShown} de ${itemsTotal} aeropuertos`;
+        itemsHeader.innerHTML = histogramHeader();
+        if (items.length === 0) {
+          itemsBody.innerHTML = '<tr><td colspan="4">No hay aeropuertos para esta ejecución</td></tr>';
+          return;
+        }
+
+        const maximumCount = maximumAirportCount(items);
+        itemsBody.innerHTML = items.map((item) => {
+          const count = numberValue(item.airportCount);
+          const width = maximumCount > 0 && count > 0 ? Math.max(count * 100 / maximumCount, 1).toFixed(2) : '0';
+          const title = item.rawText || item.barText || `${text(item.airportCode)} ${count}`;
+          return `
+            <tr>
+              <td>${html(item.airportCode)}</td>
+              <td>${html(item.airportSeqId)}</td>
+              <td class="histogram-count">${html(item.airportCount)}</td>
+              <td>
+                <div class="histogram-bar" title="${html(title)}">
+                  <span class="histogram-fill" style="width: ${width}%"></span>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
       }
 
       function markSelectedRow(id) {
@@ -428,12 +532,12 @@
           return;
         }
         resultsBody.innerHTML = rows.map((row) => `
-          <tr data-id="${row.id}">
-            <td>${formatDate(row.executedAt)}</td>
-            <td>${text(row.userName)}</td>
-            <td>${text(row.phaseName)}</td>
-            <td>${text(row.resultSummary)}</td>
-            <td>${text(row.itemCount)}</td>
+          <tr data-id="${html(row.id)}">
+            <td>${html(formatDate(row.executedAt))}</td>
+            <td>${html(row.userName)}</td>
+            <td>${html(row.phaseName)}</td>
+            <td>${html(row.resultSummary)}</td>
+            <td>${html(row.itemCount)}</td>
           </tr>
         `).join('');
       }
@@ -454,16 +558,18 @@
           const itemsTotal = payload.itemsTotal === undefined ? result.itemCount : payload.itemsTotal;
           detailTitle.textContent = `${result.phaseName} - ${result.userName}`;
           detailMeta.innerHTML = `
-            <p><strong>Fecha:</strong> ${formatDate(result.executedAt)}</p>
-            <p><strong>Resumen:</strong> ${text(result.resultSummary)}</p>
-            <p><strong>Dataset:</strong> ${text(result.datasetPath)}</p>
-            <p><strong>Items mostrados:</strong> ${text(itemsShown)} de ${text(itemsTotal)}</p>
+            <p><strong>Fecha:</strong> ${html(formatDate(result.executedAt))}</p>
+            <p><strong>Resumen:</strong> ${html(result.resultSummary)}</p>
+            <p><strong>Dataset:</strong> ${html(result.datasetPath)}</p>
+            <p><strong>Items mostrados:</strong> ${html(itemsShown)} de ${html(itemsTotal)}</p>
           `;
           detailItems.textContent = JSON.stringify(items, null, 2);
           detailPanel.classList.remove('hidden');
           markSelectedRow(id);
           if (isDelayPhase(result)) {
             renderDelayItems(result, items, itemsShown, itemsTotal);
+          } else if (isHistogramPhase(result)) {
+            renderHistogramItems(result, items, itemsShown, itemsTotal);
           } else {
             hideItemsPanel();
           }
