@@ -1,27 +1,42 @@
 # cloud_SCALAtor API
 
-API y visor web para almacenar en Azure SQL las salidas de la PL2 ejecutadas desde Scala.
+API y visor web para almacenar en Azure SQL las salidas de la PL2 ejecutadas
+desde Scala. La documentacion completa del flujo esta en `../README.md`; la
+configuracion de Azure esta en `../README_STATUS.md`.
 
 ## Estructura
 
-- `src/server.js`: API Express y endpoints del visor.
-- `src/db.js`: conexion a Azure SQL con `mssql`.
+- `src/server.js`: API Express, endpoints y transacciones SQL.
+- `src/db.js`: conexion a Azure SQL con `mssql` y variables `DB_*`.
 - `src/validation.js`: validacion y normalizacion del JSON recibido.
-- `db/schema.sql`: tablas para resultados, items y auditoria.
+- `db/schema.sql`: tablas para runs, items y auditoria.
 - `public/index.html`: visor HTML servido por `GET /`.
 
-## Preparacion local
+## Preparacion Local
 
 ```bash
 cd cloud-api
 npm install
-cp .env.example .env
+```
+
+Configura variables de entorno antes de arrancar:
+
+```bash
+export DB_SERVER=cloud-scalator.database.windows.net
+export DB_PORT=1433
+export DB_NAME=free-sql-db-4177252
+export DB_USER=<usuario_sql>
+export DB_PASSWORD='<password_sql>'
+export DB_ENCRYPT=true
+export DB_TRUST_SERVER_CERTIFICATE=false
+export SOURCE_APP='cloud_SCALAtor Scala'
 npm start
 ```
 
-Antes de insertar resultados hay que crear las tablas de `db/schema.sql` en Azure SQL y completar `.env` con la cadena de conexion.
+Antes de insertar resultados hay que crear las tablas de `db/schema.sql` en la
+base de datos. Ese script borra tablas existentes antes de crearlas.
 
-Desde Scala, la URL que debe configurarse en `PL2/cloud-api.properties` es esta:
+Desde Scala, la URL local en `PL2/cloud-api.properties` es:
 
 ```properties
 api.url=http://localhost:3000/api/results
@@ -35,17 +50,18 @@ En Azure se sustituye por la URL publica del App Service.
 - `GET /api/health`: estado basico de la API.
 - `POST /api/results`: guarda una ejecucion de fase.
 - `GET /api/results`: lista ejecuciones ordenadas por fecha descendente.
-- `GET /api/results/:id`: detalle con todos los items.
+- `GET /api/results/:id?itemLimit=25`: detalle con los primeros items del run.
 - `GET /api/audit`: eventos de auditoria.
 
-## Ejemplo de POST
+## Ejemplo De POST
 
 ```bash
 curl -X POST http://localhost:3000/api/results \
   -H "Content-Type: application/json" \
   -d '{
     "userName": "alumno1",
-    "executedAt": "2026-05-08T12:00:00+02:00",
+    "executedAt": "2026-05-14T12:00:00+02:00",
+    "sourceApp": "cloud_SCALAtor Scala",
     "phase": { "code": "PHASE_01", "name": "Fase 01 - Retraso en salida" },
     "inputOptions": {
       "phaseOptions": { "threshold": 1440, "delayColumn": "DEP_DELAY" },
@@ -75,7 +91,7 @@ curl -X POST http://localhost:3000/api/results \
   }'
 ```
 
-## Formato de items por fase
+## Formato De Items Por Fase
 
 - Fase 01: `itemType=delay_match`, `flightId`, `delayKind`, `delayMinutes`, `rawText`.
 - Fase 02: igual que Fase 01 y ademas `tailNum`.
