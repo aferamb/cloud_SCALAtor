@@ -354,6 +354,8 @@
     </main>
 
     <script>
+      // Referencias a los nodos principales del visor. Se guardan una vez para
+      // no repetir busquedas en el DOM cada vez que se refrescan resultados.
       const resultsBody = document.getElementById('resultsBody');
       const errorBox = document.getElementById('errorBox');
       const workspace = document.getElementById('workspace');
@@ -365,26 +367,38 @@
       const detailTitle = document.getElementById('detailTitle');
       const detailMeta = document.getElementById('detailMeta');
       const detailItems = document.getElementById('detailItems');
+
+      // ID del run seleccionado. Permite recargar el detalle actual cuando el
+      // usuario cambia el selector "Items detalle".
       let selectedResultId = null;
 
+      // Muestra un error recuperable de carga o API sin romper el resto del
+      // visor. El texto queda en un parrafo visible bajo los filtros.
       function showError(message) {
         errorBox.textContent = message;
         errorBox.classList.remove('hidden');
       }
 
+      // Limpia el mensaje de error antes de una nueva consulta.
       function clearError() {
         errorBox.textContent = '';
         errorBox.classList.add('hidden');
       }
 
+      // Convierte fechas ISO recibidas desde SQL/API al formato local del
+      // navegador. Si el valor falta, se muestra texto vacio.
       function formatDate(value) {
         return value ? new Date(value).toLocaleString() : '';
       }
 
+      // Normaliza valores nulos o indefinidos antes de pintarlos.
       function text(value) {
         return value === null || value === undefined ? '' : String(value);
       }
 
+      // Escapa texto antes de insertarlo con innerHTML. El visor recibe datos
+      // que originalmente vienen de Scala/SQL, asi que no debe tratarlos como
+      // HTML confiable.
       function html(value) {
         return text(value).replace(/[&<>"']/g, (char) => ({
           '&': '&amp;',
@@ -395,11 +409,15 @@
         }[char]));
       }
 
+      // Convierte contadores del histograma a numero. Los valores invalidos se
+      // tratan como cero para no romper el calculo de barras.
       function numberValue(value) {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : 0;
       }
 
+      // Cabecera usada cuando el panel izquierdo muestra items de retrasos
+      // procedentes de Fase 01 o Fase 02.
       function delayHeader() {
         return `
           <th>#</th>
@@ -411,6 +429,7 @@
         `;
       }
 
+      // Cabecera usada cuando el panel izquierdo muestra el histograma de Fase 04.
       function histogramHeader() {
         return `
           <th>Aeropuerto</th>
@@ -420,6 +439,8 @@
         `;
       }
 
+      // Oculta el panel izquierdo. Se usa al recargar la lista, cuando no hay run
+      // seleccionado o cuando la fase no tiene una vista especializada.
       function hideItemsPanel() {
         workspace.classList.add('no-items');
         itemsTitle.textContent = 'Items de la ejecución';
@@ -428,14 +449,18 @@
         itemsBody.innerHTML = '<tr><td colspan="6">Selecciona una ejecución de Fase 01 o Fase 02</td></tr>';
       }
 
+      // Fase 01 y Fase 02 comparten la misma vista de tabla de vuelos.
       function isDelayPhase(result) {
         return result && (result.phaseCode === 'PHASE_01' || result.phaseCode === 'PHASE_02');
       }
 
+      // Fase 04 se pinta como histograma visual.
       function isHistogramPhase(result) {
         return result && result.phaseCode === 'PHASE_04';
       }
 
+      // Renderiza items `delay_match` como una fila por vuelo. Fase 01 no suele
+      // traer matricula, mientras que Fase 02 si rellena `tailNum`.
       function renderDelayItems(result, items, itemsShown, itemsTotal) {
         workspace.classList.remove('no-items');
         itemsTitle.textContent = 'Items de la ejecución';
@@ -457,6 +482,8 @@
         `).join('');
       }
 
+      // Busca el mayor contador de aeropuertos entre los items cargados. Ese
+      // valor sera la barra al 100%; el resto se escala proporcionalmente.
       function maximumAirportCount(items) {
         return items.reduce((maximum, item) => {
           const count = numberValue(item.airportCount);
@@ -464,6 +491,8 @@
         }, 0);
       }
 
+      // Renderiza items `airport_histogram` como tabla con barra horizontal.
+      // Solo se representan los items que ha devuelto la API segun `itemLimit`.
       function renderHistogramItems(result, items, itemsShown, itemsTotal) {
         workspace.classList.remove('no-items');
         itemsTitle.textContent = 'Histograma de aeropuertos';
@@ -477,6 +506,8 @@
         const maximumCount = maximumAirportCount(items);
         itemsBody.innerHTML = items.map((item) => {
           const count = numberValue(item.airportCount);
+          // La barra minima visible es 1% si el aeropuerto tiene conteo positivo.
+          // Asi los aeropuertos pequenos no desaparecen visualmente.
           const width = maximumCount > 0 && count > 0 ? Math.max(count * 100 / maximumCount, 1).toFixed(2) : '0';
           const title = item.rawText || item.barText || `${text(item.airportCode)} ${count}`;
           return `
@@ -494,12 +525,15 @@
         }).join('');
       }
 
+      // Resalta en la tabla principal el run cuyo detalle se esta visualizando.
       function markSelectedRow(id) {
         resultsBody.querySelectorAll('tr[data-id]').forEach((row) => {
           row.classList.toggle('selected', row.dataset.id === String(id));
         });
       }
 
+      // Carga la tabla principal de ejecuciones aplicando filtros de usuario,
+      // fase y limite. Al refrescar se limpia cualquier detalle anterior.
       async function loadResults() {
         clearError();
         detailPanel.classList.add('hidden');
@@ -526,6 +560,7 @@
         }
       }
 
+      // Pinta las filas resumidas de `phase_runs` que devuelve GET /api/results.
       function renderRows(rows) {
         if (rows.length === 0) {
           resultsBody.innerHTML = '<tr><td colspan="5">No hay resultados</td></tr>';
@@ -542,6 +577,8 @@
         `).join('');
       }
 
+      // Carga el detalle de un run concreto. La API devuelve la cabecera del run,
+      // los primeros N items y el total real para mostrar informacion de truncado.
       async function loadDetail(id) {
         clearError();
         selectedResultId = id;
@@ -566,6 +603,9 @@
           detailItems.textContent = JSON.stringify(items, null, 2);
           detailPanel.classList.remove('hidden');
           markSelectedRow(id);
+
+          // La misma respuesta de detalle alimenta tres vistas:
+          // tabla de retrasos, histograma o solo JSON para reducciones.
           if (isDelayPhase(result)) {
             renderDelayItems(result, items, itemsShown, itemsTotal);
           } else if (isHistogramPhase(result)) {
@@ -578,6 +618,8 @@
         }
       }
 
+      // Eventos de interfaz: refresco manual, cambios de limite y seleccion de
+      // una fila de la tabla principal.
       document.getElementById('refreshButton').addEventListener('click', loadResults);
       document.getElementById('resultsLimit').addEventListener('change', loadResults);
       document.getElementById('detailLimit').addEventListener('change', () => {
@@ -592,6 +634,7 @@
         }
       });
 
+      // Carga inicial al abrir la pagina.
       loadResults();
     </script>
   </body>

@@ -1,31 +1,52 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
+# Workflow de despliegue de la API Cloud real del proyecto.
+#
+# La aplicacion Node.js no vive en la raiz del repositorio, sino en `cloud-api`.
+# Por eso el build trabaja dentro de esa carpeta y el artefacto desplegado es
+# tambien esa carpeta. La App Service recibira `cloud-api/package.json` como
+# package principal y arrancara con su script `npm start`.
 name: Build and deploy Node.js app to Azure Web App - cloud-SCALAtor
 
 on:
+  # Despliegue automatico: solo se ejecuta al subir cambios a `main` que afecten
+  # a la API Cloud o a este propio workflow. Cambios en la parte Scala no
+  # despliegan la web automaticamente.
   push:
     branches:
       - main
     paths:
       - 'cloud-api/**'
       - '.github/workflows/main_cloud-scalator.yml'
+  # Permite lanzar el despliegue manualmente desde la pestana Actions de GitHub,
+  # aunque no haya nuevos commits que cumplan el filtro anterior.
   workflow_dispatch:
 
 jobs:
+  # Job de construccion y validacion. Prepara el codigo que luego se entregara
+  # al job de deploy como artefacto.
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read #This is required for actions/checkout
 
     steps:
+      # Descarga el repositorio en el runner de GitHub Actions.
       - uses: actions/checkout@v4
 
+      # Instala Node.js 24.x, que es la version usada para instalar dependencias
+      # y ejecutar los checks antes de desplegar.
       - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
           node-version: '24.x'
 
+      # Todas las ordenes se ejecutan dentro de `cloud-api`.
+      #
+      # - `npm ci`: instala exactamente lo definido por package-lock.json.
+      # - `npm run check`: valida sintaxis de los archivos JS principales.
+      # - build/test son opcionales; si no existen scripts, no fallan.
       - name: npm install, build, and test
         working-directory: cloud-api
         run: |
@@ -34,26 +55,36 @@ jobs:
           npm run build --if-present
           npm run test --if-present
 
+      # Guarda la carpeta `cloud-api` como artefacto llamado `node-app`.
+      # El job de deploy descargara este artefacto y lo enviara a Azure.
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
           path: cloud-api
 
+  # Job de despliegue. Solo arranca si el job `build` termina correctamente.
   deploy:
     runs-on: ubuntu-latest
     needs: build
     permissions:
+      # Necesario para que azure/login use OpenID Connect contra Azure sin
+      # guardar credenciales largas en el repositorio.
       id-token: write #This is required for requesting the JWT
       contents: read #This is required for actions/checkout
 
     steps:
+      # Recupera el artefacto generado por el job build. Queda en la carpeta
+      # local `node-app`, que sera el paquete entregado a App Service.
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: node-app
           path: node-app
       
+      # Autenticacion contra Azure con secretos creados por Deployment Center.
+      # No contienen la contrasena de la base de datos; solo identifican la app
+      # de Azure autorizada para desplegar en la suscripcion.
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -61,6 +92,9 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_97223100265848FB9837798F26339D08 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5B991D4D06BE43A79F3798671E3CBF64 }}
 
+      # Despliega el artefacto `node-app` en el slot Production de la App
+      # Service. Tras el despliegue, Azure reinicia/recarga la aplicacion y
+      # ejecuta el script start definido en cloud-api/package.json.
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3

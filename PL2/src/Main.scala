@@ -1,7 +1,23 @@
 import scala.annotation.tailrec
 import scala.io.StdIn.readLine
 
+/**
+ * Punto de entrada y coordinador de la aplicacion de consola.
+ *
+ * Este archivo no implementa los calculos de las fases; se encarga de arrancar
+ * la aplicacion, cargar configuracion y dataset, mostrar el menu, llamar a la
+ * fase elegida y ofrecer la subida del resultado a Cloud.
+ */
 object Main {
+  /**
+   * Arranca la aplicacion.
+   *
+   * Muestra la cabecera, carga la configuracion Cloud, solicita el CSV inicial y
+   * entra en el menu si el dataset se ha cargado correctamente.
+   *
+   * @param args argumentos de linea de comandos, no usados por esta practica.
+   * @return no devuelve valor; controla la ejecucion interactiva completa.
+   */
   def main(args: Array[String]): Unit = {
     println("========================================")
     println(" PL2 Scala - US Airline Dataset Toolkit")
@@ -16,7 +32,18 @@ object Main {
     }
   }
 
-  // Mantiene el menu activo mediante recursividad de cola.
+  /**
+   * Mantiene activo el menu principal mediante recursividad de cola.
+   *
+   * Cada opcion ejecuta una accion y vuelve a llamar a `menuLoop` con el estado
+   * actualizado: mismo dataset, nuevo dataset o ultimo resultado de fase. La
+   * opcion `X` es el unico caso que no hace llamada recursiva y por tanto sale.
+   *
+   * @param dataset dataset actualmente cargado.
+   * @param lastResult ultimo resultado generado por una fase, si existe.
+   * @param cloudConfig configuracion usada para ofrecer subidas Cloud.
+   * @return no devuelve valor; imprime y lee desde consola.
+   */
   @tailrec
   private def menuLoop(dataset: Dataset, lastResult: Option[PhaseResult], cloudConfig: CloudConfig): Unit = {
     printMenu(dataset)
@@ -24,6 +51,7 @@ object Main {
 
     option match {
       case "1" =>
+        // Cada fase devuelve `None` si el usuario cancela desde su submenu.
         Phase01.run(dataset, cloudConfig.itemLimit) match {
           case Some(result) =>
             offerCloudUpload(dataset, result, cloudConfig)
@@ -56,6 +84,7 @@ object Main {
             menuLoop(dataset, lastResult, cloudConfig)
         }
       case "R" | "r" =>
+        // Al recargar se conserva `lastResult`; solo cambia el dataset si la carga termina bien.
         promptAndLoadDataset(Some(dataset.path)) match {
           case Some(newDataset) => menuLoop(newDataset, lastResult, cloudConfig)
           case None             => menuLoop(dataset, lastResult, cloudConfig)
@@ -75,6 +104,12 @@ object Main {
     }
   }
 
+  /**
+   * Imprime las opciones disponibles del menu principal.
+   *
+   * @param dataset dataset actual, usado para mostrar la ruta activa.
+   * @return no devuelve valor; solo escribe por consola.
+   */
   private def printMenu(dataset: Dataset): Unit = {
     println()
     println("Menu principal")
@@ -88,6 +123,17 @@ object Main {
     println(s"CSV actual: ${dataset.path}")
   }
 
+  /**
+   * Pregunta si se debe subir a Cloud el resultado de una fase.
+   *
+   * Muestra cuantos items se enviaran, avisa si hubo truncado por limite y, si
+   * el usuario acepta, delega el `POST` en `CloudApiClient`.
+   *
+   * @param dataset dataset usado al ejecutar la fase.
+   * @param result resultado estructurado que se puede enviar.
+   * @param cloudConfig configuracion de endpoint, usuario y limite.
+   * @return no devuelve valor; puede producir un envio HTTP y siempre pausa al final.
+   */
   private def offerCloudUpload(dataset: Dataset, result: PhaseResult, cloudConfig: CloudConfig): Unit = {
     println()
     println(s"Items para enviar: ${result.sentItemCount} de ${result.totalItemCount}")
@@ -96,6 +142,7 @@ object Main {
     }
 
     if (AppUtils.readYesNo("Enviar este resultado a la API? [S/n]: ", true)) {
+      // El cliente devuelve Either para imprimir exito o error sin lanzar excepciones.
       CloudApiClient.postResult(cloudConfig, dataset, result) match {
         case Right(body) =>
           println("Resultado enviado correctamente.")
@@ -108,12 +155,22 @@ object Main {
     AppUtils.pauseForEnter()
   }
 
-  // Solicita la ruta del CSV, ofrece una ruta local por defecto y reintenta si falla.
+  /**
+   * Solicita la ruta del CSV y reintenta hasta cargarlo o cancelar.
+   *
+   * Si existe una ruta por defecto se permite pulsar Intro para usarla. Si la
+   * carga falla, se imprime el error y la funcion vuelve a preguntarse a si
+   * misma por recursion de cola.
+   *
+   * @param defaultPath ruta sugerida, normalmente el dataset actual al recargar.
+   * @return `Some(Dataset)` si se carga correctamente, o `None` si se cancela.
+   */
   @tailrec
   private def promptAndLoadDataset(defaultPath: Option[String]): Option[Dataset] = {
     val detectedDefault = defaultPath match {
       case Some(path) => Some(path)
       case None =>
+        // Cuando se arranca desde `PL2`, esta ruta permite cargar el CSV de ejemplo con Intro.
         val localPath = "data/Airline_dataset.csv"
         if (new java.io.File(localPath).exists()) Some(localPath) else None
     }
@@ -131,6 +188,7 @@ object Main {
         detectedDefault match {
           case Some(path) =>
             println("Cargando datos.........")
+            // `CsvReader` encapsula los errores de fichero o parseo en un Either.
             CsvReader.loadDataset(path) match {
               case Right(dataset) => Some(dataset)
               case Left(error) =>
@@ -151,7 +209,17 @@ object Main {
     }
   }
 
-  // Muestra las estadisticas basicas de la carga actual.
+  /**
+   * Muestra el estado actual de la aplicacion.
+   *
+   * Incluye estadisticas de carga del CSV, configuracion Cloud y resumen de la
+   * ultima fase ejecutada para que el usuario sepa con que datos esta trabajando.
+   *
+   * @param dataset dataset actualmente activo.
+   * @param cloudConfig configuracion Cloud activa.
+   * @param lastResult ultimo resultado de fase, si ya se ejecuto alguna.
+   * @return no devuelve valor; escribe el estado por consola.
+   */
   private def printApplicationState(
       dataset: Dataset,
       cloudConfig: CloudConfig,

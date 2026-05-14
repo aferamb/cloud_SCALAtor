@@ -1,3 +1,11 @@
+/**
+ * Servidor HTTP principal de cloud_SCALAtor.
+ *
+ * Este archivo define la API Express que recibe resultados desde Scala, los
+ * valida, los guarda en Azure SQL y sirve el visor web estatico. La escritura de
+ * un resultado completo se hace dentro de una transaccion: primero se crea el
+ * run en `phase_runs` y despues se insertan sus items en `phase_output_items`.
+ */
 require('dotenv').config();
 
 const path = require('path');
@@ -8,14 +16,30 @@ const { validateResultPayload } = require('./validation');
 const app = express();
 const port = Number(process.env.PORT || 3000);
 
+// Permite pruebas con payloads muy grandes. El limite logico de filas se aplica
+// en `validation.js`; este limite controla el tamano bruto del cuerpo JSON.
 app.use(express.json({ limit: '1gb' }));
 
+/**
+ * Obtiene la IP real del cliente cuando la app esta detras de Azure.
+ *
+ * App Service puede enviar la IP original en `x-forwarded-for`; si no existe,
+ * se usa la IP del socket. Solo se toma la primera IP porque la cabecera puede
+ * contener una cadena de proxies separados por comas.
+ */
 function clientIp(req) {
   return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')
     .split(',')[0]
     .trim();
 }
 
+/**
+ * Registra un evento tecnico en `api_audit_events`.
+ *
+ * La auditoria no debe impedir que la API responda: si el insert de auditoria
+ * falla, se escribe en consola y se continua. Las consultas usan parametros SQL
+ * para evitar interpolar valores recibidos por HTTP dentro de la query.
+ */
 async function audit(pool, req, eventType, statusCode, details, runId = null) {
   try {
     await pool
@@ -39,6 +63,12 @@ async function audit(pool, req, eventType, statusCode, details, runId = null) {
   }
 }
 
+/**
+ * Middleware que bloquea rutas dependientes de SQL si faltan variables `DB_*`.
+ *
+ * No comprueba credenciales ni existencia de tablas. Solo evita intentar abrir
+ * conexion cuando la App Service todavia no tiene configuracion minima.
+ */
 function requireDatabase(req, res, next) {
   if (!isDbConfigured()) {
     res.status(503).json({
@@ -50,6 +80,12 @@ function requireDatabase(req, res, next) {
   next();
 }
 
+/**
+ * Convierte un parametro de query a entero acotado.
+ *
+ * Se usa en limites de lectura para proteger la API y el navegador de consultas
+ * demasiado grandes. Si el valor no es entero, se usa el valor por defecto.
+ */
 function boundedInteger(value, defaultValue, min, max) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) {
@@ -58,8 +94,17 @@ function boundedInteger(value, defaultValue, min, max) {
   return Math.min(Math.max(parsed, min), max);
 }
 
+/**
+ * Inserta los items detallados de una ejecucion dentro de la transaccion activa.
+ *
+ * Cada item ya viene normalizado por `validation.js`, por eso aqui solo se mapea
+ * cada propiedad a su columna SQL. El `runId` enlaza todos los items con la fila
+ * principal de `phase_runs`.
+ */
 async function insertOutputItems(transaction, runId, items) {
   for (const item of items) {
+    // Se crea una request nueva por item porque el driver `mssql` asocia los
+    // parametros a cada request. Todas comparten la misma transaccion.
     await new sql.Request(transaction)
       .input('run_id', sql.Int, runId)
       .input('item_index', sql.Int, item.itemIndex)
@@ -96,10 +141,13 @@ async function insertOutputItems(transaction, runId, items) {
   }
 }
 
+// Visor web. El HTML usa la propia API para consultar runs e items.
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+// Health check ligero para comprobar si el proceso esta vivo y si ve variables
+// de base de datos. No abre conexion ni valida que existan las tablas.
 app.get('/api/health', async (_req, res) => {
   res.json({
     ok: true,
@@ -107,11 +155,20 @@ app.get('/api/health', async (_req, res) => {
   });
 });
 
+/**
+ * Guarda una ejecucion completa enviada por Scala.
+ *
+ * El cuerpo esperado es un JSON con usuario, fase, resumen, dataset e `items`.
+ * Si la validacion pasa, se guarda todo en una transaccion para que no queden
+ * runs sin items o items sin run en caso de error intermedio.
+ */
 app.post('/api/results', requireDatabase, async (req, res) => {
   const pool = await getPool();
   const validation = validateResultPayload(req.body);
 
   if (!validation.ok) {
+    // Los errores de contrato se auditan para poder depurar payloads invalidos
+    // sin tener que mirar solo los logs del proceso.
     await audit(pool, req, 'validation_error', 400, { errors: validation.errors });
     res.status(400).json({ error: 'Invalid result payload', details: validation.errors });
     return;
@@ -122,6 +179,9 @@ app.post('/api/results', requireDatabase, async (req, res) => {
 
   try {
     await transaction.begin();
+
+    // Inserta la cabecera del run. `OUTPUT inserted.id` recupera el ID identity
+    // que se necesita como clave foranea para los items.
     const result = await new sql.Request(transaction)
       .input('user_name', sql.NVarChar(120), data.userName)
       .input('phase_code', sql.NVarChar(20), data.phaseCode)
@@ -160,9 +220,14 @@ app.post('/api/results', requireDatabase, async (req, res) => {
       `);
 
     const inserted = result.recordset[0];
+
+    // Los items se insertan despues del run para poder guardar el `run_id`.
+    // Siguen dentro de la misma transaccion.
     await insertOutputItems(transaction, inserted.id, data.items);
     await transaction.commit();
 
+    // La auditoria se escribe tras confirmar la transaccion principal: el run ya
+    // existe y puede referenciarse con seguridad.
     await audit(pool, req, 'result_inserted', 201, { itemCount: data.items.length }, inserted.id);
     res.status(201).json({
       id: inserted.id,
@@ -170,6 +235,8 @@ app.post('/api/results', requireDatabase, async (req, res) => {
       itemCount: data.items.length
     });
   } catch (error) {
+    // Ante cualquier fallo de SQL se revierte la transaccion. El `.catch` evita
+    // que un rollback fallido o ya cerrado oculte el error original.
     await transaction.rollback().catch(() => undefined);
     await audit(pool, req, 'insert_error', 500, { message: error.message });
     console.error(error);
@@ -177,20 +244,30 @@ app.post('/api/results', requireDatabase, async (req, res) => {
   }
 });
 
+/**
+ * Lista ejecuciones de fase para la tabla principal del visor.
+ *
+ * Soporta filtros simples por usuario y fase. El limite queda acotado a 500 para
+ * no cargar demasiadas filas en una sola respuesta.
+ */
 app.get('/api/results', requireDatabase, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
   const filters = [];
   const request = (await getPool()).request().input('limit', sql.Int, limit);
 
   if (req.query.user) {
+    // Filtro parcial para facilitar busqueda desde el input del visor web.
     filters.push('user_name LIKE @user_name');
     request.input('user_name', sql.NVarChar(130), `%${req.query.user}%`);
   }
   if (req.query.phase) {
+    // Filtro exacto porque `phase_code` es un conjunto cerrado de cuatro fases.
     filters.push('phase_code = @phase_code');
     request.input('phase_code', sql.NVarChar(20), req.query.phase);
   }
 
+  // La clausula WHERE se compone solo con fragmentos controlados por el codigo;
+  // los valores de usuario se pasan siempre como parametros.
   const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
   const result = await request.query(`
     SELECT TOP (@limit)
@@ -213,6 +290,13 @@ app.get('/api/results', requireDatabase, async (req, res) => {
   res.json({ results: result.recordset });
 });
 
+/**
+ * Devuelve el detalle de una ejecucion concreta.
+ *
+ * La respuesta incluye la cabecera del run y los primeros `itemLimit` items. El
+ * total real se devuelve aparte para que el visor pueda mostrar "N de total" sin
+ * cargar todos los detalles.
+ */
 app.get('/api/results/:id', requireDatabase, async (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
@@ -220,6 +304,8 @@ app.get('/api/results/:id', requireDatabase, async (req, res) => {
     return;
   }
 
+  // Por defecto el visor carga 25 items. El maximo 500 protege al navegador y a
+  // SQL en ejecuciones con muchisimos resultados.
   const itemLimit = boundedInteger(req.query.itemLimit, 25, 1, 500);
   const pool = await getPool();
   const run = await pool.request().input('id', sql.Int, id).query(`
@@ -254,6 +340,8 @@ app.get('/api/results/:id', requireDatabase, async (req, res) => {
     return;
   }
 
+  // Los items se ordenan por `item_index`, que conserva el orden que mando
+  // Scala, y por `id` como desempate estable.
   const items = await pool
     .request()
     .input('id', sql.Int, id)
@@ -290,6 +378,12 @@ app.get('/api/results/:id', requireDatabase, async (req, res) => {
   });
 });
 
+/**
+ * Lista eventos tecnicos de auditoria.
+ *
+ * Es util para diagnosticar errores de validacion, insercion o pruebas manuales
+ * sin acceder directamente a los logs de Azure.
+ */
 app.get('/api/audit', requireDatabase, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
   const result = await (await getPool()).request().input('limit', sql.Int, limit).query(`
@@ -310,11 +404,13 @@ app.get('/api/audit', requireDatabase, async (req, res) => {
   res.json({ events: result.recordset });
 });
 
+// Manejador final de errores no capturados por una ruta concreta.
 app.use((err, req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: 'Unexpected server error' });
 });
 
+// En Azure App Service `PORT` lo define la plataforma. En local se usa 3000.
 app.listen(port, () => {
   console.log(`cloud_SCALAtor API listening on http://localhost:${port}`);
 });
