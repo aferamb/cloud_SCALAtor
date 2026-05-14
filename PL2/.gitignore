@@ -47,6 +47,7 @@ build/
 PL1_CUDA_REFERENCIA/
 data/
 cloud-api.properties
+src/cloud-api.properties
 
 ### Visual Studio / CUDA build outputs ###
 .vs/
