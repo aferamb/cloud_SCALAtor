@@ -659,69 +659,78 @@ Diagrama relacional completo:
 
 ```mermaid
 erDiagram
-  phase_runs ||--o{ phase_output_items : "contiene"
-  phase_runs ||--o{ api_audit_events : "referencia"
+  direction LR
+
+  phase_runs ||--o{ phase_output_items : "id -> run_id / ON DELETE CASCADE"
+  phase_runs ||--o{ api_audit_events : "id -> run_id / ON DELETE SET NULL"
 
   phase_runs {
-    int id PK
-    uniqueidentifier run_uuid UK
-    nvarchar user_name
-    nvarchar phase_code
-    nvarchar phase_name
-    datetimeoffset executed_at
-    nvarchar dataset_path
-    int rows_read
-    int stored_rows
-    int discarded_rows
-    int missing_departure_delay
-    int missing_arrival_delay
-    int missing_weather_delay
-    nvarchar input_options_json
-    nvarchar result_summary
-    nvarchar console_output
-    int item_count
-    datetimeoffset inserted_at
-    nvarchar client_ip
-    nvarchar user_agent
-    nvarchar source_app
+    int id PK "IDENTITY(1,1)"
+    uniqueidentifier run_uuid UK "DEFAULT NEWID()"
+    nvarchar user_name "NOT NULL"
+    nvarchar phase_code "NOT NULL, CHECK PHASE_01..PHASE_04"
+    nvarchar phase_name "NOT NULL"
+    datetimeoffset executed_at "NOT NULL"
+    nvarchar dataset_path "NULL"
+    int rows_read "NULL"
+    int stored_rows "NULL"
+    int discarded_rows "NULL"
+    int missing_departure_delay "NULL"
+    int missing_arrival_delay "NULL"
+    int missing_weather_delay "NULL"
+    nvarchar input_options_json "NOT NULL, ISJSON"
+    nvarchar result_summary "NOT NULL"
+    nvarchar console_output "NULL"
+    int item_count "NOT NULL, DEFAULT 0"
+    datetimeoffset inserted_at "NOT NULL, DEFAULT SYSDATETIMEOFFSET()"
+    nvarchar client_ip "NULL"
+    nvarchar user_agent "NULL"
+    nvarchar source_app "NULL"
   }
 
   phase_output_items {
-    bigint id PK
-    int run_id FK
-    int item_index
-    nvarchar item_type
-    int flight_id
-    nvarchar tail_num
-    nvarchar airport_code
-    int airport_seq_id
-    nvarchar delay_kind
-    int delay_minutes
-    nvarchar reduction_column
-    nvarchar reduction_type
-    int reduction_value
-    int valid_count
-    nvarchar airport_kind
-    int airport_count
-    nvarchar bar_text
-    nvarchar raw_text
-    nvarchar item_json
-    datetimeoffset inserted_at
+    bigint id PK "IDENTITY(1,1)"
+    int run_id FK "NOT NULL"
+    int item_index "NOT NULL"
+    nvarchar item_type "NULL"
+    int flight_id "NULL"
+    nvarchar tail_num "NULL"
+    nvarchar airport_code "NULL"
+    int airport_seq_id "NULL"
+    nvarchar delay_kind "NULL"
+    int delay_minutes "NULL"
+    nvarchar reduction_column "NULL"
+    nvarchar reduction_type "NULL"
+    int reduction_value "NULL"
+    int valid_count "NULL"
+    nvarchar airport_kind "NULL"
+    int airport_count "NULL"
+    nvarchar bar_text "NULL"
+    nvarchar raw_text "NULL"
+    nvarchar item_json "NOT NULL, ISJSON"
+    datetimeoffset inserted_at "NOT NULL, DEFAULT SYSDATETIMEOFFSET()"
   }
 
   api_audit_events {
-    bigint id PK
-    nvarchar event_type
-    int run_id FK
-    nvarchar method
-    nvarchar path
-    int status_code
-    nvarchar client_ip
-    nvarchar user_agent
-    nvarchar details_json
-    datetimeoffset created_at
+    bigint id PK "IDENTITY(1,1)"
+    nvarchar event_type "NOT NULL"
+    int run_id FK "NULL"
+    nvarchar method "NULL"
+    nvarchar path "NULL"
+    int status_code "NULL"
+    nvarchar client_ip "NULL"
+    nvarchar user_agent "NULL"
+    nvarchar details_json "NULL, ISJSON si no es NULL"
+    datetimeoffset created_at "NOT NULL, DEFAULT SYSDATETIMEOFFSET()"
   }
 ```
+
+Imagen renderizada del diagrama:
+
+![Diagrama lógico de la base de datos](PL2_diagrama_bd_logico.png)
+
+Tambien esta disponible como [`PL2_diagrama_bd_logico.svg`](PL2_diagrama_bd_logico.svg)
+y como fuente Mermaid en [`PL2_diagrama_bd_logico.mmd`](PL2_diagrama_bd_logico.mmd).
 
 ### `phase_runs`
 
